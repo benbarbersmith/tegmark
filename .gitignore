@@ -1,10 +1,11 @@
 bower_components/*
 www/**/vendor*
 www/fonts/*
-www/js/angular**.js
-www/js/bootstrap**.js
-www/js/d3**.js
-www/js/jquery**.js
+www/js/angular*.js
+www/js/bootstrap*.js
+www/js/d3*.js
+www/js/jquery*.js
+www/js/topojson*.js
 www/css/bootstrap.css
 www/css/bootstrap.min.css
 *.swp
