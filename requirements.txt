@@ -13,5 +13,6 @@ protobuf==2.6.1
 pyglet==1.2.4
 pysqlite==2.8.1
 scipy==0.17.0
+simplejson==3.8.1
 Werkzeug==0.11.3
 -e git+https://github.com/calvinmetcalf/topojson.py.git@111bfd80fd338ac5d951d8d5ada8ee1471e00a31#egg=topojson
