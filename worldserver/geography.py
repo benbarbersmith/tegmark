@@ -8,7 +8,7 @@ import everett
 
 def make_fake_geography():
     g = ""
-    with open('worldserver/sample_geojson.js', 'r') as f:
+    with open('worldserver/sample_geojson.json', 'r') as f:
         g = f.read()
     return json.loads(g)
     features = [
