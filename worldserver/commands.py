@@ -34,7 +34,7 @@ def resolve_command(command, global_state_dict, global_lock):
             g_thread.start()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : json_safe_world(global_state_dict[new_world_id])}
         elif command['command'] == 'list_worlds':
-            return {'result' : 'success', 'worlds': {world_id: json_safe_world(world) for world_id, world in global_state_dict}}
+            return {'result' : 'success', 'worlds': {world_id: json_safe_world(world) for world_id, world in global_state_dict.iteritems()}}
         elif command['command'] == 'get_world':
             world_id = command.get('world_id', None)
             if world_id is None:
