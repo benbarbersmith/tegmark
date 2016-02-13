@@ -37,4 +37,5 @@ Alternatively, use Python to host it locally:
 
 Built with Flask. Requires flask and flask-cors. Instructions:
 
+`python worldserver.py`
 `python webserver.py`
