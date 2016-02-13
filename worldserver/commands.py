@@ -9,8 +9,13 @@ from threading import Thread
 import generation
 import geography
 
+
 def json_safe_world(w):
     return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'geography', 'topography', 'status']}
+
+
+def list_safe_world(w):
+    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'status']}
 
 
 sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'geography' : geography.make_fake_geography(), 'topography': None, 'status' : 'complete'}
@@ -37,7 +42,7 @@ def resolve_command(command, global_state_dict, global_lock):
             g_thread.start()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : json_safe_world(global_state_dict[new_world_id])}
         elif command['command'] == 'list_worlds':
-            return {'result' : 'success', 'worlds': {world_id: json_safe_world(world) for world_id, world in global_state_dict.iteritems()}}
+            return {'result' : 'success', 'worlds': {world_id: list_safe_world(world) for world_id, world in global_state_dict.iteritems()}}
         elif command['command'] == 'get_world':
             world_id = command.get('world_id', None)
             if world_id is None:
