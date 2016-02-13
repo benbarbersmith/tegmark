@@ -41,6 +41,8 @@ def geography_from_everett_world(world):
             if initial_point is None:
                 initial_point = node
             polygon_points.append((node.lon, node.lat))
-        polygon_points.append((initial_point.lon, initial_point.lat))
-        geo_features.append(Polygon(polygon_points))
+        if initial_point is not None:
+            polygon_points.append((initial_point.lon, initial_point.lat))
+        if len(polygon_points) > 0:
+            geo_features.append(Feature(geometry=Polygon([polygon_points])))
     return FeatureCollection(geo_features)
