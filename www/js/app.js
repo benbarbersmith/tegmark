@@ -1,6 +1,6 @@
 'use strict';
 
-var serverUrl = "http://localhost:15000"
+var serverUrl = "http://localhost:15000/api"
 
 var tegmarkApp = angular.module('tegmarkApp', [
   'ngRoute',
@@ -38,7 +38,7 @@ tegmarkControllers.controller('MapCtrl', ['$scope', 'Map', function($scope, Map)
 
 tegmarkControllers.controller('AboutCtrl', ['$scope', 'ServerDetails', function($scope, ServerDetails) {
   var server = ServerDetails;
-  
+
   $scope.$watch(function () { return server.getVersion() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined' && newVal != oldVal) {
       $scope.version = server.getVersion();
@@ -139,9 +139,9 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       label: "@",
       onClick: "&"
     },
-    link: function(scope, element, attrs) {
-      //TODO: Stop repeating yourself.
-      var svg = d3.select("body").append("svg")
+    link: function(scope, elements, attrs) {
+      console.log(elements[0]);
+      var svg = d3.select(elements[0]).append("svg")
         .attr("width", "100%")
         .attr("height", "100%");
 
