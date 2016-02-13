@@ -16,7 +16,11 @@ tegmarkApp.config(['$routeProvider', '$locationProvider',
         templateUrl: 'partials/about.html',
         controller: 'AboutCtrl'
       }).
-      when('/map', {
+      when('/worlds', {
+        templateUrl: 'partials/worlds.html',
+        controller: 'WorldListCtrl'
+      }).
+      when('/world/:worldId', {
         templateUrl: 'partials/map.html',
         controller: 'MapCtrl'
       }).
@@ -28,13 +32,24 @@ tegmarkApp.config(['$routeProvider', '$locationProvider',
 
 var tegmarkControllers = angular.module('tegmarkControllers', []);
 
-tegmarkControllers.controller('MapCtrl', ['$scope', 'Map', function($scope, Map) {
-  $scope.data = Map.query();
+tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', function($scope, $routeParams, World) {
+  if(typeof $routeParams.worldId !== 'undefined')
+    World.get($routeParams.worldId)
+      .then(function(world) {
+         $scope.data = world.geography;
+         $scope.name = world.name;
+      });
+  }]);
 
-  $scope.$watch(function () { return Map.query() }, function (newVal, oldVal) {
+
+tegmarkControllers.controller('WorldListCtrl', ['$scope', 'Worlds', function($scope, Worlds) {
+  $scope.worlds = Worlds.list();
+  $scope.createWorld = Worlds.create;
+
+  $scope.$watch(function () { return Worlds.list() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined' && newVal != oldVal) {
-      $scope.data = Map.query();
-      console.log("Map data updated.");
+      $scope.worlds = Worlds.list();
+      console.log("World list updated.");
       }
     });
   }]);
@@ -87,7 +102,7 @@ tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, 
   	.then(function(httpResponse) {
       if(httpResponse == null) return null;
       console.log("Loading server version.");
-      version = httpResponse.data;
+      version = httpResponse.data.version;
       })
   	.catch(function(err) {
       console.error(err);
@@ -100,27 +115,60 @@ tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, 
   return server;
   }]);
 
-tegmarkServices.factory('Map', ['$http', 'serverUrl', function($http, serverUrl) {
-  var map = {};
-  var json = {};
+tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUrl) {
+  var world = {};
 
-  $http.get('map.json')
-  	.then(function(httpResponse) {
-      if(httpResponse == null) return null;
-      console.log("Loading map data.");
-      json = httpResponse.data;
-      })
-  	.catch(function(err) {
-      console.error(err);
-      });
-
-  map.query = function() {
-    return json;
+  world.get = function(world_id) {
+    return $http.get(serverUrl + '/world/' + world_id)
+    	.then(function(httpResponse) {
+        if(httpResponse == null) return null;
+        console.log("Loading world data.");
+        return httpResponse.data.world;
+        })
+    	.catch(function(err) {
+        console.error(err);
+        });
   }
 
-  return map;
+  return world;
   }]);
 
+  tegmarkServices.factory('Worlds', ['$http', 'serverUrl', function($http, serverUrl) {
+    var worlds = {};
+    var list = [];
+
+    worlds.refresh = function() {
+      console.log("Requesting worlds list.");
+      $http.get(serverUrl + '/worlds/')
+      	.then(function(httpResponse) {
+          if(httpResponse == null) return null;
+          console.log("Loading worlds list.");
+          list = httpResponse.data;
+          })
+      	.catch(function(err) {
+          console.error(err);
+          });
+    }
+
+    worlds.create = function() {
+      console.log("Creating new world.");
+      $http.post(serverUrl + '/worlds/')
+      .then(function(httpResponse) {
+        if(httpResponse == null) return null;
+        worlds.refresh();
+        })
+      .catch(function(err) {
+        console.error(err);
+        });
+    }
+
+    worlds.list = function() {
+      return list;
+    }
+
+    worlds.refresh();
+    return worlds;
+    }]);
 
 tegmarkServices.factory('d3', [function() {
     var d3;
@@ -149,9 +197,10 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
       var render = function(map) {
-        if(typeof map !== 'undefined' && typeof map.objects !== 'undefined') {
+        if(typeof map !== 'undefined') {
+          console.log("Rendering map.");
           svg.append("path")
-            .datum(topojson.feature(map, map.objects.subunits))
+            .data(map.features)
             .attr("d", d3.geo.path().projection(d3.geo.mercator()));
         }
       };
