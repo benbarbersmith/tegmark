@@ -44,7 +44,7 @@ def about_page():
 
 @blueprint_api.route('/world/<world_id>')
 def get_world(world_id=None):
-    return json.dumps(worldclient.issue_world_command({'command': 'get_world', 'world_id': world_id}))
+    return Response(json.dumps(worldclient.issue_world_command({'command': 'get_world', 'world_id': world_id})), 200, json_headers())
 
 
 @blueprint_api.route('/worlds/', methods=['GET', 'POST'])
