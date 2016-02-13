@@ -213,23 +213,26 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
 
       svg.append("rect")
         .attr("width", width)
-        .attr("height", height)
-        .call(d3.behavior.zoom().on("zoom", function () {
-          console.log("Zooming.");
+        .attr("height", height);
+
+      var zoom = d3.behavior.zoom()
+        .on("zoom", function () {
           svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
-        }))
-        .append("g");
+        });
 
-      var bounds  = [[-180,-90],[180,90]];
-      var scale  = (bounds[1][0] - bounds[0][0]);
-      var offset = [width/2, height/2];
+      zoom(svg);
 
+      /*
+      var bounds = [[-180,-90],[180,90]];
+      var scale = (bounds[1][0] - bounds[0][0]);
+      */
+
+      var offset = [width/1.75, height/2];
       var projection = d3.geo.orthographic()
-        .scale(scale)
-        .center([0,0])
+        .scale(250)
+        .clipAngle(90)
         .translate(offset);
 
-      // create the path
       var path = d3.geo.path().projection(projection);
 
       var rotateWorld = function() {
@@ -251,13 +254,29 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         }
       });
 
+      var i = 0;
+      var colors = ["red", "green", "blue", "yellow"];
+      var getId = function() {
+        i++;
+        return colors[i % colors.length];
+      }
+
       var render = function() {
         if(typeof scope.data !== 'undefined') {
           console.log("Rendering map.");
-          svg.selectAll("path").data(scope.data.features).enter()
-            .append("path")
+          /*
+          svg.append("path")
+            .data(scope.data.features)
             .attr("d", path)
-            .style("fill", "grey")
+            .style("fill", "white")
+
+            */
+          svg.selectAll(".subunit")
+            .data(scope.data.features)
+            .enter().append("path")
+            .attr("class", "land")
+            .attr("style", function(d) { return "fill:" + getId(); })
+            .attr("d", path)
             .style("stroke-width", "1")
             .style("stroke", "black");
         }
