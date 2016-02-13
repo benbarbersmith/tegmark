@@ -1,6 +1,6 @@
 'use strict';
 
-var serverUrl = "http://localhost:15000"
+var serverUrl = "http://localhost:15000/api"
 
 var tegmarkApp = angular.module('tegmarkApp', [
   'ngRoute',
@@ -29,16 +29,21 @@ tegmarkApp.config(['$routeProvider', '$locationProvider',
 var tegmarkControllers = angular.module('tegmarkControllers', []);
 
 tegmarkControllers.controller('MapCtrl', ['$scope', 'Map', function($scope, Map) {
+  $scope.data = Map.query();
+
   $scope.$watch(function () { return Map.query() }, function (newVal, oldVal) {
-    if (typeof newVal !== 'undefined') {
-      $scope.mapdata = Map.query();
+    if (typeof newVal !== 'undefined' && newVal != oldVal) {
+      $scope.data = Map.query();
+      console.log("Map data updated.");
       }
     });
   }]);
 
 tegmarkControllers.controller('AboutCtrl', ['$scope', 'ServerDetails', function($scope, ServerDetails) {
   var server = ServerDetails;
-  
+  $scope.motd = server.getMotd();
+  $scope.version = server.getVersion();
+
   $scope.$watch(function () { return server.getVersion() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined' && newVal != oldVal) {
       $scope.version = server.getVersion();
@@ -133,24 +138,31 @@ var tegmarkDirectives = angular.module('tegmarkDirectives', ['tegmarkServices'])
 
 tegmarkDirectives.directive('map', ['d3', function(d3) {
   return {
-    restrict: 'EA',
+    restrict: 'E',
     scope: {
-      data: "=",
-      label: "@",
-      onClick: "&"
+      data: "="
     },
-    link: function(scope, element, attrs) {
-      //TODO: Stop repeating yourself.
-      var svg = d3.select("body").append("svg")
+    link: function(scope, elements, attrs) {
+      var svg = d3.select(elements[0]).append("svg")
         .attr("width", "100%")
-        .attr("height", "100%");
+        .attr("height", "100%")
+        .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
-        d3.json("map.json", function(error, map) {
-          if (error) return console.error(error);
-          scope.mapdata = map;
+      var render = function(map) {
+        if(typeof map !== 'undefined' && typeof map.objects !== 'undefined') {
           svg.append("path")
             .datum(topojson.feature(map, map.objects.subunits))
             .attr("d", d3.geo.path().projection(d3.geo.mercator()));
+        }
+      };
+
+      render(scope.data);
+
+      scope.$watch("data", function (newVal, oldVal) {
+        if (typeof newVal !== 'undefined' && newVal != oldVal) {
+          svg.selectAll("*").remove();
+          render(newVal);
+          }
         });
       }
     }

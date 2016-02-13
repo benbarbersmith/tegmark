@@ -8,6 +8,7 @@ www/js/jquery*.js
 www/js/topojson*.js
 www/css/bootstrap.css
 www/css/bootstrap.min.css
+src/
 *.swp
 *.log
 *.sh

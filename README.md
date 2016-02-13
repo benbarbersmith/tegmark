@@ -35,7 +35,8 @@ Alternatively, use Python to host it locally:
 
 ## Backend
 
-Built with Flask. Requires flask and flask-cors. Instructions:
+Built with Flask. Instructions:
 
-`python worldserver.py`
-`python webserver.py`
+1. `pip install -r requirements.txt`
+2. `python worldserver.py`
+3. `python webserver.py`
