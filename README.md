@@ -16,9 +16,8 @@ libraries before deploying -- use Bower for fun and profit. Instructions:
 6. `cp ./bower_components/bootstrap/dist/js/bootstrap.min.js www/js/`
 7. `cp ./bower_components/jquery/dist/jquery.min.js www/js/`
 8. `cp ./bower_components/d3/d3.min.js www/js/`
-9. `cp ./bower_components/topojson/topojson.js ./www/js/`
-10. `cp ./bower_components/bootstrap/dist/css/bootstrap.min.css www/css/``
-11. `cp ./bower_components/bootstrap/dist/fonts/* www/fonts/`
+9. `cp ./bower_components/bootstrap/dist/css/bootstrap.min.css www/css/``
+10. `cp ./bower_components/bootstrap/dist/fonts/* www/fonts/`
 
 The frontend will use the URL defined at the top of `www/app.js` as the base for
 requests to the backend.

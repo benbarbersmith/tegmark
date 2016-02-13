@@ -191,26 +191,89 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       data: "="
     },
     link: function(scope, elements, attrs) {
-      var svg = d3.select(elements[0]).append("svg")
+      var parent = elements[0].offsetParent;
+      var width = parent.offsetWidth * 0.75;
+      var height = width;
+
+      var svg = d3.select(elements[0])
+        .append("svg")
         .attr("width", "100%")
-        .attr("height", "100%")
+        .attr("height", height)
         .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
-      var render = function(map) {
-        if(typeof map !== 'undefined') {
+      var features = svg.append("g");
+
+      var zoomed = function() {
+        console.log("Zooming!");
+        console.log(d3.event);
+        features.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+      }
+
+      var zoom = d3.behavior.zoom()
+          .translate([0, 0])
+          .scale(1)
+          .scaleExtent([1, 8])
+          .on("zoom", zoomed);
+
+      svg.append("rect")
+          .attr("class", "overlay")
+          .attr("width", width)
+          .attr("height", height)
+          .call(zoom);
+
+      var render = function() {
+        if(typeof scope.data !== 'undefined') {
           console.log("Rendering map.");
+
+          var center = d3.geo.centroid(scope.data.features)
+          var scale  = 150;
+          var offset = [width/2, height/2];
+          var projection = d3.geo.mercator().scale(scale).center(center)
+              .translate(offset);
+
+          // create the path
+          var path = d3.geo.path().projection(projection);
+          console.log(scope.data.features[0]);
+
+          // using the path determine the bounds of the current map and use
+          // these to determine better values for the scale and translation
+          var bounds  = path.bounds(scope.data.features[0]);
+          console.log(bounds);
+          var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
+          var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
+          var scale   = (hscale < vscale) ? hscale : vscale;
+          var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
+                            height - (bounds[0][1] + bounds[1][1])/2];
+
+          // new projection
+          projection = d3.geo.mercator().center(center)
+            .scale(scale).translate(offset);
+          path = path.projection(projection);
+
+
+          svg.selectAll("path").data(scope.data.features).enter().append("path")
+            .attr("d", path)
+            .style("fill", "red")
+            .style("stroke-width", "1")
+            .style("stroke", "black");
+
+          /*
+          var projection = d3.geo.mercator()
+            .center([0.23345947265625,51.41805099864197]);
+
+          var path = d3.geo.path()
+            .projection(projection);
           svg.append("path")
-            .data(map.features)
-            .attr("d", d3.geo.path().projection(d3.geo.mercator()));
+            .data(scope.data.features)
+            .attr("d", path);
+            */
         }
       };
-
-      render(scope.data);
 
       scope.$watch("data", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
           svg.selectAll("*").remove();
-          render(newVal);
+          render();
           }
         });
       }
