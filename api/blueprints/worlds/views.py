@@ -55,5 +55,6 @@ def worlds():
                                    'uri': url_for('worlds.get_world', world_id=world['world_id'])}), 202, json_headers())
     else:  # if request.method == 'GET':
         current_worlds = worldclient.issue_world_command({'command': 'list_worlds'})
-        worlds_list = [{'world_id': k, 'world': v} for k, v in current_worlds['worlds'].iteritems()]
+        worlds_list = [{'world_id': world_id, 'name': world.get('name', 'Hepatitis'),
+                        'uri' : url_for('worlds.get_world', world_id=world_id)} for world_id, world in current_worlds['worlds'].iteritems()]
         return Response(json.dumps(worlds_list), 200, json_headers())
