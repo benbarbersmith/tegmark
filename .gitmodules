@@ -1,0 +1,3 @@
+[submodule "everett"]
+	path = everett
+	url = https://github.com/samcorcoran/everett.git
