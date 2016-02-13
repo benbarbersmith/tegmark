@@ -1,5 +1,4 @@
 from geojson import FeatureCollection, Feature, Polygon
-from topojson import topojson
 import json
 import StringIO
 
@@ -16,20 +15,6 @@ def make_fake_geography():
         Feature(geometry=Polygon([(-50.0,-10.0), (-50.0, -50.0), (-10.0, -50.0), (-10.0, -10.0), (-50.0, -50.0)])),
     ]
     return FeatureCollection(features)
-
-
-def geography_to_topography(gj):
-    mister_buffer = StringIO.StringIO()
-    mister_buffer.write(json.dumps(gj))
-    mister_buffer.flush()
-    mister_buffer.seek(0)
-
-    outy_buffer = StringIO.StringIO()
-
-    topojson(gj, outy_buffer)
-    mister_buffer.close()
-
-    return json.loads(outy_buffer.getvalue())
 
 
 def geography_from_everett_world(world):

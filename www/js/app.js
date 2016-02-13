@@ -222,25 +222,25 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .domain([0, height])
         .range([90, -90]);
 
-      var zoom = d3.behavior.zoom()
-        .on("zoom", function () {
-          svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
-        });
-
-      zoom(svg);
-
-      /*
-      var bounds = [[-180,-90],[180,90]];
-      var scale = (bounds[1][0] - bounds[0][0]);
-      */
-
-      var offset = [width/2, height/2];
+      var offset = [(width-90)/2, (height-90)/2];
       var projection = d3.geo.orthographic()
         .scale(250)
         .clipAngle(90)
         .translate(offset);
 
       var path = d3.geo.path().projection(projection);
+
+  	  var zoomed = function() {
+  	    projection.translate(d3.event.translate).scale(d3.event.scale);
+  	    svg.selectAll("path").attr("d", path);
+  	  }
+
+      var zoom = d3.behavior.zoom()
+    		.translate(projection.translate())
+    		.scale(projection.scale())
+    		.on("zoom", zoomed);
+
+      zoom(svg);
 
       var rotateWorld = function() {
         var p = d3.mouse(this);
@@ -277,7 +277,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .enter().append("path")
             .attr("class", "land")
             .attr("fill", function(d) { return getId(); })
-            .attr("fill-opacity", "0.5")
+            .attr("fill-opacity", "0.8")
             .attr("d", path)
             .style("stroke-width", "1")
             .style("stroke", "black");
