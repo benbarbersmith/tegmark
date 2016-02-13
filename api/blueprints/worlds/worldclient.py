@@ -17,12 +17,10 @@ def issue_world_command(command_dict):
             buff = sockety.recv(4096)
     except:
         pass
-    lines = data.splitlines()
-    jsons = []
-    for line in lines:
-        try:
-            jsons.append(json.loads(line))
-        except:
-            pass
+    response_json = data.strip()
+    try:
+        response_dict = json.loads(response_json)
+    except:
+        response_dict = {}  # there's been a catastrophic error that we should smartly handle
     sockety.close()
-    return jsons
+    return response_dict
