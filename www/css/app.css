@@ -2,3 +2,21 @@
   fill: none;
   pointer-events: all;
 }
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  height: 100vh;
+}
+
+.container, .view-container, .view-frame {
+  height: calc(100vh - 90px);
+}
+
+#map {
+  top: 20px;
+  bottom: 20px;
+}

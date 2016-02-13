@@ -203,13 +203,13 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
     },
     link: function(scope, elements, attrs) {
       var parent = elements[0].offsetParent;
-      var width = parent.offsetWidth * 0.75;
-      var height = width;
+      var width = parent.offsetWidth;
+      var height = parent.offsetHeight;
 
       var svg = d3.select(elements[0])
         .append("svg")
         .attr("width", "100%")
-        .attr("height", height)
+        .attr("height", "100%")
         .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
       var features = svg.append("g");
@@ -221,10 +221,6 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       var φ = d3.scale.linear()
         .domain([0, height])
         .range([90, -90]);
-
-      svg.append("rect")
-        .attr("width", width)
-        .attr("height", height);
 
       var zoom = d3.behavior.zoom()
         .on("zoom", function () {
@@ -238,7 +234,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       var scale = (bounds[1][0] - bounds[0][0]);
       */
 
-      var offset = [width/1.75, height/2];
+      var offset = [width/2, height/2];
       var projection = d3.geo.orthographic()
         .scale(250)
         .clipAngle(90)
@@ -275,19 +271,13 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       var render = function() {
         if(typeof scope.data !== 'undefined') {
           console.log("Rendering map.");
-          /*
-          svg.append("path")
-            .data(scope.data.features)
-            .attr("d", path)
-            .style("fill", "white")
 
-            */
           svg.selectAll(".subunit")
             .data(scope.data.features)
             .enter().append("path")
             .attr("class", "land")
             .attr("fill", function(d) { return getId(); })
-            .attr("fill-opacity", "0.1")
+            .attr("fill-opacity", "0.5")
             .attr("d", path)
             .style("stroke-width", "1")
             .style("stroke", "black");
