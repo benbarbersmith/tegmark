@@ -12,11 +12,11 @@ libraries before deploying -- use Bower for fun and profit. Instructions:
 2. `bower install`
 3. `cp ./bower_components/angular/angular.min.js www/js/`
 4. `cp ./bower_components/angular-resource/angular-resource.min.js www/js/`
-5. `cp ./bower_components/angular-route/angular-route.min.js www/js/``
+5. `cp ./bower_components/angular-route/angular-route.min.js www/js/`
 6. `cp ./bower_components/bootstrap/dist/js/bootstrap.min.js www/js/`
 7. `cp ./bower_components/jquery/dist/jquery.min.js www/js/`
 8. `cp ./bower_components/d3/d3.min.js www/js/`
-9. `cp ./bower_components/bootstrap/dist/css/bootstrap.min.css www/css/``
+9. `cp ./bower_components/bootstrap/dist/css/bootstrap.min.css www/css/`
 10. `cp ./bower_components/bootstrap/dist/fonts/* www/fonts/`
 
 The frontend will use the URL defined at the top of `www/app.js` as the base for

@@ -8,6 +8,11 @@ from threading import Thread
 
 import generation
 
+
+def json_safe_world(w):
+    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'geography', 'topography', 'status']}
+
+
 def resolve_command(command, global_state_dict, global_lock):
     """
     :param command: a dict constructed from the JSON of the command passed from the world client
@@ -27,9 +32,9 @@ def resolve_command(command, global_state_dict, global_lock):
             global_lock.release()
             g_thread = Thread(target=generation.add_world_geography, args=(new_world_id, global_state_dict, global_lock))
             g_thread.start()
-            return {'result' : 'success', 'world_id' : new_world_id, 'world' : global_state_dict[new_world_id]}
+            return {'result' : 'success', 'world_id' : new_world_id, 'world' : json_safe_world(global_state_dict[new_world_id])}
         elif command['command'] == 'list_worlds':
-            return {'result' : 'success', 'worlds' : global_state_dict}
+            return {'result' : 'success', 'worlds': {world_id: json_safe_world(world) for world_id, world in global_state_dict.iteritems()}}
         elif command['command'] == 'get_world':
             world_id = command.get('world_id', None)
             if world_id is None:
@@ -37,7 +42,7 @@ def resolve_command(command, global_state_dict, global_lock):
             elif world_id not in global_state_dict:
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
-                return {'result' : 'success', 'world_id' : world_id, 'world' : global_state_dict[world_id]}
+                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(global_state_dict[world_id])}
         elif command['command'] == 'delete_world':
             world_id = command.get('world_id', None)
             if world_id is None:
