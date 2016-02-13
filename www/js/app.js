@@ -191,26 +191,101 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       data: "="
     },
     link: function(scope, elements, attrs) {
-      var svg = d3.select(elements[0]).append("svg")
+      var parent = elements[0].offsetParent;
+      var width = parent.offsetWidth * 0.75;
+      var height = width;
+
+      var svg = d3.select(elements[0])
+        .append("svg")
         .attr("width", "100%")
-        .attr("height", "100%")
+        .attr("height", height)
         .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
-      var render = function(map) {
-        if(typeof map !== 'undefined') {
+      var features = svg.append("g");
+
+      var λ = d3.scale.linear()
+        .domain([0, width])
+        .range([-180, 180]);
+
+      var φ = d3.scale.linear()
+        .domain([0, height])
+        .range([90, -90]);
+
+      svg.append("rect")
+        .attr("width", width)
+        .attr("height", height);
+
+      var zoom = d3.behavior.zoom()
+        .on("zoom", function () {
+          svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
+        });
+
+      zoom(svg);
+
+      /*
+      var bounds = [[-180,-90],[180,90]];
+      var scale = (bounds[1][0] - bounds[0][0]);
+      */
+
+      var offset = [width/1.75, height/2];
+      var projection = d3.geo.orthographic()
+        .scale(250)
+        .clipAngle(90)
+        .translate(offset);
+
+      var path = d3.geo.path().projection(projection);
+
+      var rotateWorld = function() {
+        var p = d3.mouse(this);
+        projection.rotate([λ(p[0]), φ(p[1])]);
+        svg.selectAll("path").attr("d", path);
+      }
+
+      var moving = false;
+      svg.on("click", function() {
+        moving = !moving;
+        if(moving) {
+          console.log("Enable rotation.");
+          svg.on("mousemove", rotateWorld)
+        }
+        else {
+          console.log("Disable rotation.");
+          svg.on("mousemove", function() {})
+        }
+      });
+
+      var i = 0;
+      var colors = ["red", "green", "blue", "yellow"];
+      var getId = function() {
+        i++;
+        return colors[i % colors.length];
+      }
+
+      var render = function() {
+        if(typeof scope.data !== 'undefined') {
           console.log("Rendering map.");
+          /*
           svg.append("path")
-            .data(map.features)
-            .attr("d", d3.geo.path().projection(d3.geo.mercator()));
+            .data(scope.data.features)
+            .attr("d", path)
+            .style("fill", "white")
+
+            */
+          svg.selectAll(".subunit")
+            .data(scope.data.features)
+            .enter().append("path")
+            .attr("class", "land")
+            .attr("style", function(d) { return "fill:" + getId(); })
+            .attr("d", path)
+            .style("stroke-width", "1")
+            .style("stroke", "black");
         }
       };
-
-      render(scope.data);
 
       scope.$watch("data", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
           svg.selectAll("*").remove();
-          render(newVal);
+          render();
           }
         });
       }
