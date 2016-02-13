@@ -21,7 +21,8 @@ def resolve_command(command, global_state_dict, global_lock):
             g = geography.make_fake_geography()
             # t = geography.geography_to_topography(g)
             global_lock.acquire()
-            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'world' : ':)', 'geography' : g}
+            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'world' : ':)', 'geography' : g,
+                                               'topography': None}
             global_lock.release()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : global_state_dict[new_world_id]}
         elif command['command'] == 'list_worlds':

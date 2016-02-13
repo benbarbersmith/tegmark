@@ -1,15 +1,19 @@
-from geojson import GeometryCollection, Polygon
-# from topojson import topojson
+from geojson import FeatureCollection, Feature, Polygon
+from topojson import topojson
 import json
 import StringIO
 
 
 def make_fake_geography():
-    polygons = [
-        Polygon([(50.0, 0), (50.0, 50.0), (0.0, 50.0), (0.0, 0.0), (50.0, 50.0)]),
-        Polygon([(-50.0,-10.0), (-50.0, -50.0), (-10.0, -50.0), (-10.0, -10.0), (-50.0, -50.0)]),
+    g = ""
+    with open('worldserver/sample_geojson.js', 'r') as f:
+        g = f.read()
+    return json.loads(g)
+    features = [
+        Feature(geometry=Polygon([(50.0, 0), (50.0, 50.0), (0.0, 50.0), (0.0, 0.0), (50.0, 50.0)])),
+        Feature(geometry=Polygon([(-50.0,-10.0), (-50.0, -50.0), (-10.0, -50.0), (-10.0, -10.0), (-50.0, -50.0)])),
     ]
-    return GeometryCollection(polygons)
+    return FeatureCollection(features)
 
 
 def geography_to_topography(gj):
@@ -20,7 +24,7 @@ def geography_to_topography(gj):
 
     outy_buffer = StringIO.StringIO()
 
-    topojson(mister_buffer, outy_buffer)
+    topojson(gj, outy_buffer)
     mister_buffer.close()
 
     return json.loads(outy_buffer.getvalue())
