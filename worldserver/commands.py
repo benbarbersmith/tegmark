@@ -28,7 +28,7 @@ def resolve_command(command, global_state_dict, global_lock):
         if command['command'] == 'create_new_world':
             new_world_id = "{:08x}".format(random.getrandbits(32))
             # t = geography.geography_to_topography(g)
-            n = "Sphereland"
+            n = "World {}".format(int(new_world_id, 16))
             global_lock.acquire()
             global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'name' : n, 'geography' : None,
                                                'topography': None, 'status' : 'generating'}
