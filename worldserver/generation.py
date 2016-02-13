@@ -7,7 +7,7 @@ from logger import logger
 
 
 def add_world_geography(world_id, global_state_dict, global_lock):
-    w = World()
+    w = World(num_voronoi_cells=100)
     g = geography.geography_from_everett_world(w)
     # for a in range(30):
     #     logger.debug(u"Waiting for {} seconds...".format(a))
