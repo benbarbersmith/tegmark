@@ -7,10 +7,13 @@ import random
 from threading import Thread
 
 import generation
-
+import geography
 
 def json_safe_world(w):
     return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'geography', 'topography', 'status']}
+
+
+sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'geography' : geography.make_fake_geography(), 'topography': None, 'status' : 'complete'}
 
 
 def resolve_command(command, global_state_dict, global_lock):
@@ -39,6 +42,8 @@ def resolve_command(command, global_state_dict, global_lock):
             world_id = command.get('world_id', None)
             if world_id is None:
                 return {'result' : 'error', 'error' : 'must specify world_id'}
+            elif world_id == "sample":
+                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(sample_world)}
             elif world_id not in global_state_dict:
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
