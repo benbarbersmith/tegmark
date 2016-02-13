@@ -39,12 +39,7 @@ def about_page():
                 label = "Git not found! {}".format(e)
         else:
             label = "Git not on PATH"
-    return label
-
-
-@blueprint_api.route('/create_world')
-def create_world():
-    return Response(json.dumps(worldclient.issue_world_command({'command': 'create_new_world'})), 202, json_headers())
+    return Response(json.dumps({'version' : label}), 200, json_headers())
 
 
 @blueprint_api.route('/world/<world_id>')

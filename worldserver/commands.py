@@ -5,6 +5,8 @@ everett worlds kept in memory
 
 import random
 
+import geography
+
 def resolve_command(command, global_state_dict, global_lock):
     """
     :param command: a dict constructed from the JSON of the command passed from the world client
@@ -16,8 +18,10 @@ def resolve_command(command, global_state_dict, global_lock):
     if 'command' in command:
         if command['command'] == 'create_new_world':
             new_world_id = "{:08x}".format(random.getrandbits(32))
+            g = geography.make_fake_geography()
+            # t = geography.geography_to_topography(g)
             global_lock.acquire()
-            global_state_dict[new_world_id] = { 'properties' : [ 'generated' ], 'world' : ':)' }
+            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'world' : ':)', 'geography' : g}
             global_lock.release()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : global_state_dict[new_world_id]}
         elif command['command'] == 'list_worlds':

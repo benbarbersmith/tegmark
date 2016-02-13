@@ -1,3 +1,6 @@
 [submodule "everett"]
 	path = everett
 	url = https://github.com/samcorcoran/everett.git
+[submodule "topojson"]
+	path = topojson
+	url = https://github.com/calvinmetcalf/topojson.py.git
