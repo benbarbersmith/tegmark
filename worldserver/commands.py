@@ -4,8 +4,9 @@ everett worlds kept in memory
 """
 
 import random
+from threading import Thread
 
-import geography
+import generation
 
 def resolve_command(command, global_state_dict, global_lock):
     """
@@ -18,13 +19,14 @@ def resolve_command(command, global_state_dict, global_lock):
     if 'command' in command:
         if command['command'] == 'create_new_world':
             new_world_id = "{:08x}".format(random.getrandbits(32))
-            g = geography.make_fake_geography()
             # t = geography.geography_to_topography(g)
             n = "Sphereland"
             global_lock.acquire()
-            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'name' : n, 'geography' : g,
-                                               'topography': None}
+            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'name' : n, 'geography' : None,
+                                               'topography': None, 'status' : 'generating'}
             global_lock.release()
+            g_thread = Thread(target=generation.add_world_geography, args=(new_world_id, global_state_dict, global_lock))
+            g_thread.start()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : global_state_dict[new_world_id]}
         elif command['command'] == 'list_worlds':
             return {'result' : 'success', 'worlds' : global_state_dict}
