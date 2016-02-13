@@ -1,3 +1,17 @@
+bower_components/*
+www/**/vendor*
+www/fonts/*
+www/js/angular**.js
+www/js/bootstrap**.js
+www/js/d3**.js
+www/js/jquery**.js
+www/css/bootstrap.css
+www/css/bootstrap.min.css
+*.swp
+*.log
+*.sh
+*.pyc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
