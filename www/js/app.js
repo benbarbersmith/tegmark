@@ -1,5 +1,7 @@
 'use strict';
 
+var serverUrl = "http://localhost:15000"
+
 var tegmarkApp = angular.module('tegmarkApp', [
   'ngRoute',
   'tegmarkControllers',
@@ -26,21 +28,74 @@ tegmarkApp.config(['$routeProvider', '$locationProvider',
 
 var tegmarkControllers = angular.module('tegmarkControllers', []);
 
-tegmarkControllers.controller('MapCtrl', ['$scope', '$http', 'Map', function($scope, $http, Map) {
+tegmarkControllers.controller('MapCtrl', ['$scope', 'Map', function($scope, Map) {
   $scope.$watch(function () { return Map.query() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined') {
-        $scope.mapdata = Map.query();
-    }
-});
+      $scope.mapdata = Map.query();
+      }
+    });
   }]);
 
-tegmarkControllers.controller('AboutCtrl', ['$scope', function($scope) {
+tegmarkControllers.controller('AboutCtrl', ['$scope', 'ServerDetails', function($scope, ServerDetails) {
+  var server = ServerDetails;
+  
+  $scope.$watch(function () { return server.getVersion() }, function (newVal, oldVal) {
+    if (typeof newVal !== 'undefined' && newVal != oldVal) {
+      $scope.version = server.getVersion();
+      }
+    });
+
+  $scope.$watch(function () { return server.getMotd() }, function (newVal, oldVal) {
+    if (typeof newVal !== 'undefined' && newVal != oldVal) {
+      $scope.motd = server.getMotd();
+      }
+    });
   }]);
 
 
 var tegmarkServices = angular.module('tegmarkServices', ['ngResource']);
 
-tegmarkServices.factory('Map', ['$http', function($http) {
+tegmarkServices.config(function($provide) {
+    $provide.value('serverUrl', serverUrl);
+  });
+
+tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, serverUrl) {
+  var server = {};
+  var motd;
+  var version;
+
+  $http.get(serverUrl + '/')
+  	.then(function(httpResponse) {
+      if(httpResponse == null) return null;
+      console.log("Loading server message of the day.");
+      motd = httpResponse.data;
+      })
+  	.catch(function(err) {
+      console.error(err);
+      });
+
+  server.getMotd = function() {
+    return motd;
+  }
+
+  $http.get(serverUrl + '/version')
+  	.then(function(httpResponse) {
+      if(httpResponse == null) return null;
+      console.log("Loading server version.");
+      version = httpResponse.data;
+      })
+  	.catch(function(err) {
+      console.error(err);
+      });
+
+  server.getVersion = function() {
+    return version;
+  }
+
+  return server;
+  }]);
+
+tegmarkServices.factory('Map', ['$http', 'serverUrl', function($http, serverUrl) {
   var map = {};
   var json = {};
 
