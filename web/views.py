@@ -9,5 +9,5 @@ def home():
 @app.route('/version')
 def version():
     import subprocess
-    label = subprocess.check_output(["C:/Git/bin/git.exe", "describe", "--always" ])
+    label = subprocess.check_output(["git", "describe", "--always" ])
     return label
