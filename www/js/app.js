@@ -57,11 +57,18 @@ tegmarkControllers.controller('WorldListCtrl', ['$scope', 'Worlds', function($sc
 tegmarkControllers.controller('AboutCtrl', ['$scope', 'ServerDetails', function($scope, ServerDetails) {
   var server = ServerDetails;
   $scope.motd = server.getMotd();
-  $scope.version = server.getVersion();
+  $scope.tegmarkVersion = server.getTegmarkVersion();
+  $scope.everettVersion = server.getEverettVersion();
 
-  $scope.$watch(function () { return server.getVersion() }, function (newVal, oldVal) {
+  $scope.$watch(function () { return server.getEverettVersion() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined' && newVal != oldVal) {
-      $scope.version = server.getVersion();
+      $scope.everettVersion = server.getEverettVersion();
+      }
+    });
+
+  $scope.$watch(function () { return server.getTegmarkVersion() }, function (newVal, oldVal) {
+    if (typeof newVal !== 'undefined' && newVal != oldVal) {
+      $scope.tegmarkVersion = server.getTegmarkVersion();
       }
     });
 
@@ -81,8 +88,7 @@ tegmarkServices.config(function($provide) {
 
 tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, serverUrl) {
   var server = {};
-  var motd;
-  var version;
+  var motd, tegmarkVersion, everettVersion;
 
   $http.get(serverUrl + '/')
   	.then(function(httpResponse) {
@@ -102,14 +108,19 @@ tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, 
   	.then(function(httpResponse) {
       if(httpResponse == null) return null;
       console.log("Loading server version.");
-      version = httpResponse.data.version;
+      tegmarkVersion = httpResponse.data.tegmark_version;
+      everettVersion = httpResponse.data.everett_version;
       })
   	.catch(function(err) {
       console.error(err);
       });
 
-  server.getVersion = function() {
-    return version;
+  server.getTegmarkVersion = function() {
+    return tegmarkVersion;
+  }
+
+  server.getEverettVersion = function() {
+    return everettVersion;
   }
 
   return server;
@@ -255,7 +266,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       });
 
       var i = 0;
-      var colors = ["red", "green", "blue", "yellow"];
+      var colors = ["firebrick", "yellowgreen", "dodgerblue", "gold"];
       var getId = function() {
         i++;
         return colors[i % colors.length];
@@ -275,7 +286,8 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .data(scope.data.features)
             .enter().append("path")
             .attr("class", "land")
-            .attr("style", function(d) { return "fill:" + getId(); })
+            .attr("fill", function(d) { return getId(); })
+            .attr("fill-opacity", "0.1")
             .attr("d", path)
             .style("stroke-width", "1")
             .style("stroke", "black");

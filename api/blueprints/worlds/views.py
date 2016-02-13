@@ -14,15 +14,11 @@ def json_headers():
     return jh
 
 
-@blueprint_api.route("/")
-def hello_world():
-    return "Hello world"
-
-
-@blueprint_api.route("/version")
-def about_page():
+def git_label(path):
     import subprocess,os
+    os.chdir(path)
     git_path = None
+    label = ""
     for possible_path in ["C:/Git/bin/git.exe", "C:/Program Files/Git/bin/git.exe",
                           "C:/Program Files (x86)/Git/bin/git.exe"]: # this is where they live on my computer
         if os.path.isfile(possible_path):
@@ -39,7 +35,22 @@ def about_page():
                 label = "Git not found! {}".format(e)
         else:
             label = "Git not on PATH"
-    return Response(json.dumps({'version' : label}), 200, json_headers())
+    return label
+
+
+@blueprint_api.route("/")
+def hello_world():
+    return "Hello world"
+
+
+@blueprint_api.route("/version")
+def about_page():
+    import os
+    original_dir = os.getcwd()
+    tegmark_label = git_label(os.curdir)
+    everett_label = git_label(os.curdir + os.path.sep + "everett" + os.path.sep);
+    os.chdir(original_dir)
+    return Response(json.dumps({'tegmark_version' : tegmark_label, 'everett_version' : everett_label}), 200, json_headers())
 
 
 @blueprint_api.route('/world/<world_id>')
