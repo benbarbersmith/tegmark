@@ -71,32 +71,38 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
       return {};
   }
 
+  world.rename = function(name) {
+    console.log("Renaming " + world.name + " to " + name + ".");
+    var data = {"name": name};
+    return $http.put(serverUrl + '/world/' + world.id, data)
+    .then(function(httpResponse) {
+      if(("" + httpResponse.status).startsWith("2")) {
+        console.log("Renamed world.");
+        world.name = name;
+        return name;
+      }
+      else {
+        return null;
+      }
+      })
+    .catch(function(err) {
+      console.error(err);
+      });
+  }
+
   return world;
   }]);
 
   tegmarkServices.factory('Worlds', ['$http', 'serverUrl', function($http, serverUrl) {
     var worlds = {};
-    var list = [];
-
-    worlds.refresh = function() {
-      console.log("Requesting worlds list.");
-      $http.get(serverUrl + '/worlds/')
-      	.then(function(httpResponse) {
-          if(httpResponse == null) return null;
-          console.log("Loading worlds list.");
-          list = httpResponse.data;
-          })
-      	.catch(function(err) {
-          console.error(err);
-          });
-    }
+    var names = {};
 
     worlds.create = function() {
       console.log("Creating new world.");
       return $http.post(serverUrl + '/worlds/')
       .then(function(httpResponse) {
         if(httpResponse == null) return null;
-        worlds.refresh();
+        worlds.list();
         return httpResponse.data.world_id;
         })
       .catch(function(err) {
@@ -105,10 +111,26 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
     }
 
     worlds.list = function() {
-      return list;
+      console.log("Requesting worlds list.");
+      return $http.get(serverUrl + '/worlds/')
+      	.then(function(httpResponse) {
+          if(httpResponse == null) return null;
+          console.log("Loading worlds list.");
+          names = httpResponse.data.reduce(function(acc, w) {
+            acc[w.world_id] = w.name;
+            return acc;
+          }, {});
+          return httpResponse.data;
+          })
+      	.catch(function(err) {
+          console.error(err);
+          });
     }
 
-    worlds.refresh();
+    worlds.names = function() {
+      return names;
+    }
+
     return worlds;
     }]);
 

@@ -14,6 +14,9 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', fun
 tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, World) {
   $scope.id = World.id;
   $scope.name = World.name;
+  $scope.renameWorld = function() {
+    World.rename($scope.name);
+  }
 
   $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {
       if (typeof newVal !== 'undefined' && newVal != oldVal) {
@@ -23,31 +26,32 @@ tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, Wor
     });
   }]);
 
-tegmarkControllers.controller('RecentCtrl', ['$scope', 'World', function($scope, World) {
+tegmarkControllers.controller('RecentCtrl', ['$scope', 'Worlds', 'World', function($scope, Worlds, World) {
   $scope.current = undefined;
   $scope.recent = [];
-  $scope.names = {};
+  $scope.names = Worlds.names();
 
   $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {
       if (typeof newVal !== 'undefined' && newVal != oldVal) {
         var previous = $scope.current;
+        var recent = $scope.recent;
+
         $scope.current = {id: World.id, name: World.name};
 
         if(typeof previous === 'undefined') return;
+        $scope.recent = [];
+        Worlds.list().then(function() {
+          $scope.names = Worlds.names();
+        });
+
         $scope.names[previous.id] = previous.name;
-
-        var index = $scope.recent.indexOf($scope.current.id);
+        var index = recent.indexOf($scope.current.id);
         if(index >= 0) {
-          console.log("Removing " + previous.id + " from list");
-          $scope.recent.splice(index, 1);
-        } else {
-          console.log(previous.id + " not in list");
+          recent.splice(index, 1);
         }
-
-        console.log("Inserting " + previous.id + " to list");
-        $scope.recent.unshift(previous.id);
-        if($scope.recent.length > 3) $scope.recent.pop();
-        console.log($scope.recent);
+        recent.unshift(previous.id);
+        if(recent.length > 3) recent.pop();
+        $scope.recent = recent;
       }
     });
   }]);
@@ -61,20 +65,31 @@ tegmarkControllers.controller('LocationCtrl', ['$scope', '$location', function($
   }]);
 
 
-tegmarkControllers.controller('WorldListCtrl', ['$scope', '$location', 'Worlds', function($scope, $location, Worlds) {
-  $scope.worlds = Worlds.list();
+tegmarkControllers.controller('WorldListCtrl', ['$scope', '$location', 'Worlds', 'World', function($scope, $location, Worlds, World) {
+  var refresh = function() {
+    Worlds.list().then(function(worlds) {
+      $scope.worlds = worlds;
+      console.log("World list updated.");
+    });
+  }
   $scope.createWorld = Worlds.create;
   $scope.createAndVisitWorld = function() {
     Worlds.create().then(function(id) {
       $location.path('/world/' + id);
     });
+  }
+  refresh();
 
+  var knownName = function(name) {
+    if(typeof $scope.worlds == 'undefined') return false;
+    return $scope.worlds.reduce(function(seen, world) {
+      return seen || (world.name == name);
+    }, false);
   }
 
-  $scope.$watch(function () { return Worlds.list() }, function (newVal, oldVal) {
-    if (typeof newVal !== 'undefined' && newVal != oldVal) {
-      $scope.worlds = Worlds.list();
-      console.log("World list updated.");
+  $scope.$watch(function () { return World.name }, function (newVal, oldVal) {
+    if (typeof newVal !== 'undefined' && !knownName(newVal)) {
+      refresh();
       }
     });
   }]);

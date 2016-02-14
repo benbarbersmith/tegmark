@@ -26,10 +26,9 @@
           </a>
 				</div>
 
-				<div class="collapse navbar-collapse">
-					<ul class="nav navbar-nav" ng-controller="LocationCtrl">
+				<div class="collapse navbar-collapse" ng-controller="LocationCtrl">
+					<ul class="nav navbar-nav">
             <li class="{{active('worlds')}}"><a ng-href="#/worlds">Worlds</a></li>
-            <li class="{{active('world/')}}" ng-controller="IdCtrl"><a ng-href="#/world/{{id}}">{{name}}</a></li>
             <li class="dropdown" ng-controller="RecentCtrl" ng-show="recent.length > 0">
               <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Recent worlds <span class="caret"></span></a>
               <ul class="dropdown-menu">
@@ -42,7 +41,17 @@
           <button class="btn btn-primary navbar-btn navbar-right" ng-controller="WorldListCtrl" ng-click="createAndVisitWorld()">
             Visit new world
           </button>
-
+          <ul class="nav navbar-nav navbar-right">
+            <li class="{{active('world/')}}" ng-controller="IdCtrl">
+              <a ng-hide="active('world/') == 'active' || !id" ng-href="#/world/{{id}}">Return to {{name}}</a>
+              <form ng-show="active('world/') == 'active'" class="navbar-form navbar-left" role="rename">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="worldName" ng-model="name" />
+                </div>
+                <button type="submit" class="btn btn-default" ng-click="renameWorld()">Rename</button>
+              </form>
+            </li>
+          </ul>
 				</div><!-- /.navbar-collapse -->
 			</div>
 		</nav>
