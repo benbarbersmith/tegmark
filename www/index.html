@@ -32,7 +32,7 @@
             <li class="{{active('world')}}"><a ng-href="#/worlds">Worlds</a></li>
             <li class="{{active('about')}}"><a ng-href="#/about">About</a></li>
 					</ul>
-          <p class="navbar-text navbar-right" ng-controller="IdCtrl">{{id}}</p>
+          <p class="navbar-text navbar-right" ng-controller="IdCtrl"><a ng-show="id" ng-href="#/world/{{id}}">World {{id}}</a></p>
 				</div><!-- /.navbar-collapse -->
 			</div>
 		</nav>
