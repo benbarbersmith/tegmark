@@ -48,20 +48,26 @@ tegmarkServices.factory('ServerDetails', ['$http', 'serverUrl', function($http, 
 
 tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUrl) {
   var world = {};
+  var active = false;
 
   world.get = function(world_id) {
-    return $http.get(serverUrl + '/world/' + world_id)
-    	.then(function(httpResponse) {
-        if(httpResponse == null) return null;
-        console.log("Loading world data.");
-        world.id = httpResponse.data.world_id;
-        world.name = httpResponse.data.world.name;
-        world.data = httpResponse.data;
-        return httpResponse.data.world;
-        })
-    	.catch(function(err) {
-        console.error(err);
-        });
+    if(!active) {
+      active = true;
+      return $http.get(serverUrl + '/world/' + world_id)
+      	.then(function(httpResponse) {
+          if(httpResponse == null) return null;
+          console.log("Loading world data.");
+          active = false;
+          world.id = httpResponse.data.world_id;
+          world.name = httpResponse.data.world.name;
+          world.status = httpResponse.data.world.status;
+          world.data = httpResponse.data;
+          return httpResponse.data.world;
+          })
+      	.catch(function(err) {
+          console.error(err);
+          });
+    }
   }
 
   world.getInfo = function() {
@@ -90,6 +96,17 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
       });
   }
 
+  world.poll = function() {
+    console.log("Checking for updates to world status.");
+    if(world.status == "complete") {
+      return false;
+    }
+    else {
+      world.get(world.id);
+      return true;
+    }
+  }
+
   return world;
   }]);
 
@@ -102,6 +119,7 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
       return $http.post(serverUrl + '/worlds/')
       .then(function(httpResponse) {
         if(httpResponse == null) return null;
+        console.log("Created world " + httpResponse.data.world_id + ".");
         worlds.list();
         return httpResponse.data.world_id;
         })

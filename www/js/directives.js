@@ -2,11 +2,12 @@
 
 var tegmarkDirectives = angular.module('tegmarkDirectives', ['tegmarkServices']);
 
-tegmarkDirectives.directive('map', ['d3', function(d3) {
+tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interval, d3, World) {
   return {
     restrict: 'E',
     scope: {
-      world: "="
+      world: "=",
+      status: "="
     },
     link: function(scope, elements, attrs) {
       var parent = elements[0].offsetParent;
@@ -133,30 +134,48 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       }
 
       var render = function() {
-        if(typeof scope.world !== 'undefined' && scope.world.status == "complete") {
-          console.log("Rendering map.");
-          svg.selectAll(".subunit")
-            .data(scope.world.geography.features)
-            .enter().append("path")
-            .attr("class", "land")
-            .attr("fill", function(d) {
-              var rgb = getColorByAltitude(d);
-              return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
-            })
-            .attr("fill-opacity", "0.8")
-            .attr("d", path)
-            .style("stroke-width", "1")
-            .style("stroke", "black");
-        } else {
-
-        }
+        console.log("Rendering map.");
+        svg.selectAll(".subunit")
+          .data(scope.world.geography.features)
+          .enter().append("path")
+          .attr("class", "land")
+          .attr("fill", function(d) {
+            var rgb = getColorByAltitude(d);
+            return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+          })
+          .attr("fill-opacity", "0.8")
+          .attr("d", path)
+          .style("stroke-width", "1")
+          .style("stroke", "black");
       };
+
+      var poll;
 
       scope.$watch("world", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
           svg.selectAll("*").remove();
-          render();
+          if(typeof scope.world !== 'undefined' && scope.status == "complete") {
+            if(typeof poll !== 'undefined') $interval.cancel(poll);
+            render();
           }
+          else {
+            svg.append("text")
+              .text("Generating world...")
+              .attr("x", "50%")
+              .attr("y", "50%")
+              .attr("alignment-baseline", "middle")
+              .attr("text-anchor", "middle")
+              .attr("font-family", "sans-serif")
+              .attr("font-size", "18px")
+              .attr("fill", "#777");
+              ;
+            if(scope.status == "generating") {
+              poll = $interval(World.poll, 200);
+            } else {
+              if(typeof poll !== 'undefined') $interval.cancel(poll);
+            }
+          }
+        }
         });
       }
     }

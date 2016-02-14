@@ -7,8 +7,17 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', fun
     World.get($routeParams.worldId)
       .then(function(world) {
          $scope.data = world;
+         $scope.status = World.status;
          $scope.id = $routeParams.worldId;
       });
+
+  $scope.$watch(function () { return World.status; }, function (newVal, oldVal) {
+      if (typeof newVal !== 'undefined' && newVal != oldVal && newVal == 'complete') {
+        $scope.data = World.data.world;
+        $scope.status = World.status;
+      }
+    });
+
   }]);
 
 tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, World) {
