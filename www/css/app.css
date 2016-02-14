@@ -24,3 +24,13 @@ body {
   top: 20px;
   bottom: 20px;
 }
+
+.stroke {
+  fill: none;
+  stroke: #777;
+  stroke-width: 2px;
+}
+
+.fill {
+  fill: #fff;
+}
