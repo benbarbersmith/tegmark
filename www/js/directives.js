@@ -84,15 +84,48 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .on("touchmove.zoom", dmove)
         .on("touchend.zoom", null);
 
+      var colourMix = function(bounds, distance) {
+        return [0,1,2].map(function(i) {
+          var max, min;
+          if(bounds[1][i] > bounds[0][i]) {
+            max = bounds[1][i];
+            min = bounds[0][i];
+          } else {
+            max = bounds[0][i];
+            min = bounds[1][i];
+          }
+          var range = max - min;
+          return Math.round(min + range * distance);
+        });
+      }
+
       var colourMap = {
-    		'sea' : '#3498db',
-    		'lowlands' : '#27ae60',
-    		'highlands' : '#c0392b',
-    		'alpine' : '#95a5a6'
+    		'sea' : [[54,188,255], [59,116,237]],
+    		'lowlands' : [[100,189,41], [84,170,37]],
+    		'highlands' : [[84,170,37], [25,76,17]],
+    		'alpine' : [[150,109,33], [255,255,255]]
   	  }
-      
-      var getId = function(d) {
-    		return colourMap[d.properties.terrain_type];
+
+      var altitudeMapByLatitude = function(latitude) {
+        var highland_max = (-0.8*latitude*latitude + 3800) / 10000;
+        return {
+      		'sea' : [-1, 0],
+      		'lowlands' : [0, 0.05],
+      		'highlands' : [0.05, highland_max],
+      		'alpine' : [highland_max, 1]
+        };
+  	  }
+
+      var getColorByAltitude = function(d) {
+        var latitude = d.geometry.coordinates[0].reduce(function(acc, i) {
+          acc += i[1];
+          return acc;
+        }, 0) / d.geometry.coordinates[0].length;
+    		var altitudeBounds = altitudeMapByLatitude(latitude)[d.properties.terrain_type];
+        var colourBounds = colourMap[d.properties.terrain_type];
+        var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
+        var rgb = colourMix(colourBounds, distance);
+        return rgb;
       }
 
       var render = function() {
@@ -103,7 +136,10 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .data(scope.data.features)
             .enter().append("path")
             .attr("class", "land")
-            .attr("fill", function(d) { return getId(d); })
+            .attr("fill", function(d) {
+              var rgb = getColorByAltitude(d);
+              return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+            })
             .attr("fill-opacity", "0.8")
             .attr("d", path)
             .style("stroke-width", "1")
