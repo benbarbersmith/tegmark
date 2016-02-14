@@ -18,6 +18,9 @@ def list_safe_world(w):
     return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'status']}
 
 
+def json_safe_cell(world_id, c):
+    return {'world_id' : world_id, 'cell_id' : [c.centre.lon, c.centre.lat], 'boundary_points' : [{'boundary_id' : [b.lon, b.lat], 'wood' : 0, 'meat' : 0, 'ore' : 0} for b in c.nodes]}
+
 sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'geography' : geography.make_fake_geography(), 'topography': None, 'status' : 'complete'}
 
 
@@ -53,6 +56,22 @@ def resolve_command(command, global_state_dict, global_lock):
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
                 return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(global_state_dict[world_id])}
+        elif command['command'] == 'get_world_cell':
+            world_id = command.get('world_id', None)
+            lat = command.get('lat', None)
+            lon = command.get('lon', None)
+            if world_id is None or lat is None or lon is None:
+                return {'result' : 'error', 'error' : 'must specify world_id, lat and lon'}
+            elif world_id not in global_state_dict:
+                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
+            else:
+                try:
+                    cell = global_state_dict[world_id]['everett'].cells_by_centre_loc.get(tuple((lon, lat)))
+                except KeyError as e:
+                    return {'result' : 'error', 'error' : "world {} has not finished generating!".format(world_id)}
+                if cell is None:
+                    return {'result' : 'error', 'error' : "cell at ({},{}) in world {} doesn't exist".format(lon, lat, world_id)}
+                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_cell(world_id, cell)}
         elif command['command'] == 'delete_world':
             world_id = command.get('world_id', None)
             if world_id is None:

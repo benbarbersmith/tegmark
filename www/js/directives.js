@@ -84,11 +84,14 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .on("touchmove.zoom", dmove)
         .on("touchend.zoom", null);
 
-      var i = 0;
-      var colors = ["firebrick", "yellowgreen", "dodgerblue", "gold"];
-      var getId = function() {
-        i++;
-        return colors[i % colors.length];
+      var colourMap = {
+		'sea' : '#3498db',
+		'lowlands' : '#27ae60',
+		'highlands' : '#c0392b',
+		'alpine' : '#95a5a6'
+	  }
+      var getId = function(d) {
+		return colourMap[d.properties.terrain_type];
       }
 
       var render = function() {
@@ -99,7 +102,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .data(scope.data.features)
             .enter().append("path")
             .attr("class", "land")
-            .attr("fill", function(d) { return getId(); })
+            .attr("fill", function(d) { return getId(d); })
             .attr("fill-opacity", "0.8")
             .attr("d", path)
             .style("stroke-width", "1")
