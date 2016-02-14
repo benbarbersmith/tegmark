@@ -56,7 +56,7 @@ def about_page():
 @blueprint_api.route('/world/<world_id>')
 def get_world(world_id=None):
     got_world = worldclient.issue_world_command({'command': 'get_world', 'world_id': world_id})
-    if got_world['status'] == 'success':
+    if got_world['result'] == 'success':
         return Response(json.dumps(got_world), 200, json_headers())
     else:
         return Response(json.dumps(got_world), 404, json_headers())
