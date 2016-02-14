@@ -13,9 +13,41 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', fun
 
 tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, World) {
   $scope.id = World.id;
-  $scope.$watch(function () { return World.id }, function (newVal, oldVal) {
-    if (typeof newVal !== 'undefined' && newVal != oldVal) {
-      $scope.id = World.id;
+  $scope.name = World.name;
+
+  $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        $scope.id = World.id;
+        $scope.name = World.name;
+      }
+    });
+  }]);
+
+tegmarkControllers.controller('RecentCtrl', ['$scope', 'World', function($scope, World) {
+  $scope.current = undefined;
+  $scope.recent = [];
+  $scope.names = {};
+
+  $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        var previous = $scope.current;
+        $scope.current = {id: World.id, name: World.name};
+
+        if(typeof previous === 'undefined') return;
+        $scope.names[previous.id] = previous.name;
+
+        var index = $scope.recent.indexOf($scope.current.id);
+        if(index >= 0) {
+          console.log("Removing " + previous.id + " from list");
+          $scope.recent.splice(index, 1);
+        } else {
+          console.log(previous.id + " not in list");
+        }
+
+        console.log("Inserting " + previous.id + " to list");
+        $scope.recent.unshift(previous.id);
+        if($scope.recent.length > 3) $scope.recent.pop();
+        console.log($scope.recent);
       }
     });
   }]);
@@ -34,7 +66,6 @@ tegmarkControllers.controller('WorldListCtrl', ['$scope', '$location', 'Worlds',
   $scope.createWorld = Worlds.create;
   $scope.createAndVisitWorld = function() {
     Worlds.create().then(function(id) {
-      console.log(id);
       $location.path('/world/' + id);
     });
 

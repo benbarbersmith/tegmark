@@ -21,21 +21,28 @@
 						<span class="icon-bar"></span>
 						<span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" ng-href="#/">
+          <a class="navbar-brand" ng-href="#/worlds">
             Tegmark
           </a>
 				</div>
 
 				<div class="collapse navbar-collapse">
 					<ul class="nav navbar-nav" ng-controller="LocationCtrl">
-            <li class="{{active('')}}"><a ng-href="#/">Home</a></li>
-            <li class="{{active('world')}}"><a ng-href="#/worlds">Worlds</a></li>
-            <li class="{{active('about')}}"><a ng-href="#/about">About</a></li>
+            <li class="{{active('worlds')}}"><a ng-href="#/worlds">Worlds</a></li>
+            <li class="{{active('world/')}}" ng-controller="IdCtrl"><a ng-href="#/world/{{id}}">{{name}}</a></li>
+            <li class="dropdown" ng-controller="RecentCtrl" ng-show="recent.length > 0">
+              <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Recent worlds <span class="caret"></span></a>
+              <ul class="dropdown-menu">
+                <li ng-repeat="w in recent">
+                  <a ng-href="#/world/{{w}}">{{names[w]}}</a>
+                </li>
+              </ul>
+            </li>
 					</ul>
           <button class="btn btn-primary navbar-btn navbar-right" ng-controller="WorldListCtrl" ng-click="createAndVisitWorld()">
             Visit new world
           </button>
-          <p class="navbar-text navbar-right" id="currentWorldMsg" ng-controller="IdCtrl"><a ng-show="id" ng-href="#/world/{{id}}">Current world: {{id}}</a></p>
+
 				</div><!-- /.navbar-collapse -->
 			</div>
 		</nav>

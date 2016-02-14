@@ -55,11 +55,20 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
         if(httpResponse == null) return null;
         console.log("Loading world data.");
         world.id = httpResponse.data.world_id;
+        world.name = httpResponse.data.world.name;
+        world.data = httpResponse.data;
         return httpResponse.data.world;
         })
     	.catch(function(err) {
         console.error(err);
         });
+  }
+
+  world.getInfo = function() {
+    if(typeof world.data !== 'undefined')
+      return {id: world.data.world_id, name: world.data.world.name };
+    else
+      return {};
   }
 
   return world;

@@ -133,7 +133,6 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       }
 
       var render = function() {
-        console.log(scope.world);
         if(typeof scope.world !== 'undefined' && scope.world.status == "complete") {
           console.log("Rendering map.");
           svg.selectAll(".subunit")
