@@ -132,8 +132,6 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         var colourBounds = colourMap[terrain];
         var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
         var rgb = colourMix(colourBounds, distance);
-        console.log("terrain: " + terrain + ", rgb: " + rgb[0] + "," + rgb[1] + "," + rgb[2] + ", alt: " + d.properties.altitude);
-        console.log(altitudeBounds);
         return rgb;
       }
 
@@ -166,12 +164,20 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
           .style("stroke-width", "1")
           .style("stroke", rgb)
           .on('mouseenter', function(d, i) {
-            console.log(d.properties.cell_id);
             d3.selectAll('path.cell')
               .attr("fill-opacity", function (d, j) {
                   return j == i ? "1" : "0.7";
               });
-            });
+            })
+          .on('click', function(d, i) {
+            var newAltitude = d.properties.altitude * 1.2;
+            if(newAltitude > 1) new_altitude = 1;
+            World.transform([
+              d.properties.cell_id[0],
+              d.properties.cell_id[1],
+              newAltitude
+            ]);
+          });
 
       };
 

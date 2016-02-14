@@ -96,8 +96,26 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
       });
   }
 
+  world.transform = function(cells) {
+    console.log("Changing height of cells in " + world.name + ".");
+    var data = {"geography": cells};
+    return $http.put(serverUrl + '/world/' + world.id, data)
+    .then(function(httpResponse) {
+      if(("" + httpResponse.status).startsWith("2")) {
+        console.log("Changed world.");
+        world.data = httpResponse.data;
+        return name;
+      }
+      else {
+        return null;
+      }
+      })
+    .catch(function(err) {
+      console.error(err);
+      });
+  }
+
   world.poll = function() {
-    console.log("Checking for updates to world status.");
     if(world.status == "complete") {
       return false;
     }

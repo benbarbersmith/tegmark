@@ -65,6 +65,8 @@ def get_world(world_id=None):
             world_update['name'] = user_data['name']
         if 'properties' in user_data:
             world_update['properties'] = user_data['properties']
+        if 'geography' in user_data:
+            world_update['geography'] = user_data['geography']
 
         result = worldclient.issue_world_command({'command': 'update_world', 'world_id': world_id, 'update' : world_update})
         if result['result'] == 'success':

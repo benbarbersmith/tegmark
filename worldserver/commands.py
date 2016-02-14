@@ -140,6 +140,8 @@ def resolve_command(command, global_state_dict, global_lock):
                     global_state_dict[world_id].properties = command['update']['properties']
                 if 'name' in command['update']:
                     global_state_dict[world_id].name = command['update']['name']
+                if 'geography' in command['update']:
+                    global_state_dict[world_id].everett.create_altitude_chains(command['update']['geography'])
                 result = {'result' : 'success'}
             finally:
                 global_lock.release()
