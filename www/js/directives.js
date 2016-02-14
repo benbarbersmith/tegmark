@@ -6,7 +6,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
   return {
     restrict: 'E',
     scope: {
-      data: "="
+      world: "="
     },
     link: function(scope, elements, attrs) {
       var parent = elements[0].offsetParent;
@@ -84,6 +84,10 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .on("touchmove.zoom", dmove)
         .on("touchend.zoom", null);
 
+      var rgb = function(r, g, b) {
+        return [r,g,b];
+      }
+
       var colourMix = function(bounds, distance) {
         return [0,1,2].map(function(i) {
           var max, min;
@@ -100,10 +104,10 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       }
 
       var colourMap = {
-    		'sea' : [[54,188,255], [59,116,237]],
-    		'lowlands' : [[100,189,41], [84,170,37]],
-    		'highlands' : [[84,170,37], [25,76,17]],
-    		'alpine' : [[150,109,33], [255,255,255]]
+    		'sea' : [rgb(85,177,245), rgb(0,62,130)],
+    		'lowlands' : [rgb(100,189,41), rgb(84,170,37)],
+    		'highlands' : [rgb(84,170,37), rgb(25,76,17)],
+    		'alpine' : [rgb(150,109,33), rgb(255,255,255)]
   	  }
 
       var altitudeMapByLatitude = function(latitude) {
@@ -129,11 +133,11 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       }
 
       var render = function() {
-        if(typeof scope.data !== 'undefined') {
+        console.log(scope.world);
+        if(typeof scope.world !== 'undefined' && scope.world.status == "complete") {
           console.log("Rendering map.");
-
           svg.selectAll(".subunit")
-            .data(scope.data.features)
+            .data(scope.world.geography.features)
             .enter().append("path")
             .attr("class", "land")
             .attr("fill", function(d) {
@@ -144,10 +148,12 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .attr("d", path)
             .style("stroke-width", "1")
             .style("stroke", "black");
+        } else {
+
         }
       };
 
-      scope.$watch("data", function (newVal, oldVal) {
+      scope.$watch("world", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
           svg.selectAll("*").remove();
           render();
