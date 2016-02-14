@@ -25,6 +25,20 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         .attr("height", "100%")
         .attr("fill", "#fff");
 
+      svg.append("svg:g")
+        .append("path")
+        .datum({type: "Sphere"})
+        .attr("id", "sphere")
+        .attr("d", path);
+
+      svg.append("use")
+        .attr("class", "stroke")
+        .attr("xlink:href", "#sphere");
+
+      svg.append("use")
+        .attr("class", "fill")
+        .attr("xlink:href", "#sphere");
+
       var λ = d3.scale.linear()
         .domain([0, width])
         .range([-180, 180]);
@@ -101,7 +115,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
       }
 
       var colourMap = {
-    		'permafrost' : [rgb(250,250,250), rgb(248,248,248)],
+    		'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
     		'sea' : [rgb(57,139,207), rgb(0,62,130)],
     		'lowlands' : [rgb(100,189,41), rgb(81,161,35)],
     		'highlands' : [rgb(81,161,35), rgb(25,76,17)],
@@ -142,7 +156,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         svg.selectAll(".subunit")
           .data(scope.world.geography.features)
           .enter().append("path")
-          .attr("class", function(d) { return "land " + d.properties.altitude; })
+          .attr("class", "cell")
           .attr("fill", function(d) {
             var rgb = getColorByAltitude(d);
             return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
@@ -153,7 +167,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
           .style("stroke", rgb)
           .on('mouseenter', function(d, i) {
             console.log(d.properties.cell_id);
-            d3.selectAll('path')
+            d3.selectAll('path.cell')
               .attr("fill-opacity", function (d, j) {
                   return j == i ? "1" : "0.7";
               });
@@ -165,7 +179,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
 
       scope.$watch("world", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
-          svg.selectAll("path").remove();
+          svg.selectAll("path.cell").remove();
           if(typeof scope.world !== 'undefined' && scope.status == "complete") {
             if(typeof poll !== 'undefined') $interval.cancel(poll);
             render();
