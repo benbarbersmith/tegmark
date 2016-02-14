@@ -89,34 +89,30 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         return [r,g,b];
       }
 
-      var colourMix = function(bounds, distance) {
+      var colourMix = function(bounds, distance, direction) {
         return [0,1,2].map(function(i) {
-          var max, min;
-          if(bounds[1][i] > bounds[0][i]) {
-            max = bounds[1][i];
-            min = bounds[0][i];
-          } else {
-            max = bounds[0][i];
-            min = bounds[1][i];
-          }
-          var range = max - min;
-          return Math.round(min + range * distance);
+          var range = bounds[1][i] - bounds[0][i];
+          var direction = (bounds[0][i] < bounds[1][i]) ? 1 : -1;
+          return Math.round(bounds[0][i] + range*distance*direction);
         });
       }
 
       var colourMap = {
-    		'sea' : [rgb(85,177,245), rgb(0,62,130)],
-    		'lowlands' : [rgb(100,189,41), rgb(84,170,37)],
-    		'highlands' : [rgb(84,170,37), rgb(25,76,17)],
+    		'sea' : [rgb(57,139,207), rgb(0,62,130)],
+    		'lowlands' : [rgb(100,189,41), rgb(81,161,35)],
+    		'highlands' : [rgb(81,161,35), rgb(25,76,17)],
+    		'vegetation' : [rgb(100,189,41), rgb(25,76,17)],
     		'alpine' : [rgb(150,109,33), rgb(255,255,255)]
   	  }
 
       var altitudeMapByLatitude = function(latitude) {
         var highland_max = (-0.8*latitude*latitude + 3800) / 10000;
+        highland_max = highland_max < 0 ? 0.000001 : highland_max;
         return {
       		'sea' : [-1, 0],
-      		'lowlands' : [0, 0.05],
-      		'highlands' : [0.05, highland_max],
+      		'vegetation' : [0, highland_max],
+          'lowlands' : [0, 0.05],
+          'highlands' : [0.05, highland_max],
       		'alpine' : [highland_max, 1]
         };
   	  }
@@ -126,10 +122,13 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
           acc += i[1];
           return acc;
         }, 0) / d.geometry.coordinates[0].length;
-    		var altitudeBounds = altitudeMapByLatitude(latitude)[d.properties.terrain_type];
-        var colourBounds = colourMap[d.properties.terrain_type];
+        var terrain = d.properties.terrain_type; //["highlands", "lowlands"].indexOf(d.properties.terrain_type) >= 0 ? "vegetation" : d.properties.terrain_type;
+    		var altitudeBounds = altitudeMapByLatitude(latitude)[terrain];
+        var colourBounds = colourMap[terrain];
         var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
         var rgb = colourMix(colourBounds, distance);
+        console.log("terrain: " + terrain + ", rgb: " + rgb[0] + "," + rgb[1] + "," + rgb[2] + ", alt: " + d.properties.altitude);
+        console.log(altitudeBounds);
         return rgb;
       }
 
@@ -138,7 +137,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         svg.selectAll(".subunit")
           .data(scope.world.geography.features)
           .enter().append("path")
-          .attr("class", "land")
+          .attr("class", function(d) { return "land " + d.properties.altitude; })
           .attr("fill", function(d) {
             var rgb = getColorByAltitude(d);
             return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
