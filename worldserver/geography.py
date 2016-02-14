@@ -1,3 +1,4 @@
+import math
 from geojson import FeatureCollection, Feature, Polygon
 import json
 # import StringIO
@@ -41,8 +42,10 @@ def cell_terrain_type(cell):
         alt_count += 1
         alt_sum += node.alt
     alt_mean = alt_sum/float(alt_count)
-    if alt_mean <= 0:
+    if alt_mean <= 0 and abs(cell.centre.lat) < 66:
         return {'altitude' : alt_mean, 'terrain_type' : "sea" }
+    elif alt_mean <= 0 and abs(cell.centre.lat) >= 66:
+        return {'altitude' : alt_mean, 'terrain_type' : "permafrost" }
     elif alt_mean <= 0.05:
         return {'altitude' : alt_mean, 'terrain_type' : "lowlands" }
     elif alt_mean < ((-0.8)*pow(cell.centre.lat, 2) + 3800)/10000.0: # the tree line in irl life
