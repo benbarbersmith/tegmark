@@ -20,7 +20,10 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         .attr("height", "100%")
         .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
-      var features = svg.append("g");
+      var bg = svg.append("rect")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("fill", "#fff");
 
       var λ = d3.scale.linear()
         .domain([0, width])
@@ -111,7 +114,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         highland_max = highland_max < 0 ? 0.000001 : highland_max;
         return {
       		'sea' : [-1, 0],
-			'permafrost' : [-1, 0],
+			    'permafrost' : [-1, 0],
       		'vegetation' : [0, highland_max],
           'lowlands' : [0, 0.05],
           'highlands' : [0.05, highland_max],
@@ -124,7 +127,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
           acc += i[1];
           return acc;
         }, 0) / d.geometry.coordinates[0].length;
-        var terrain = d.properties.terrain_type; //["highlands", "lowlands"].indexOf(d.properties.terrain_type) >= 0 ? "vegetation" : d.properties.terrain_type;
+        var terrain = d.properties.terrain_type;
     		var altitudeBounds = altitudeMapByLatitude(latitude)[terrain];
         var colourBounds = colourMap[terrain];
         var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
@@ -136,18 +139,40 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
 
       var render = function() {
         console.log("Rendering map.");
+        svg.append("svg:g")
+          .append("path")
+          .datum({type: "Sphere"})
+          .attr("id", "sphere")
+          .attr("d", path);
+
+        svg.append("use")
+          .attr("class", "stroke")
+          .attr("xlink:href", "#sphere");
+
+        svg.append("use")
+          .attr("class", "fill")
+          .attr("xlink:href", "#sphere")
+
         svg.selectAll(".subunit")
           .data(scope.world.geography.features)
           .enter().append("path")
-          .attr("class", function(d) { return "land " + d.properties.altitude; })
+          .attr("class", "cell")
           .attr("fill", function(d) {
             var rgb = getColorByAltitude(d);
             return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
           })
-          .attr("fill-opacity", "0.8")
+          .attr("fill-opacity", "0.7")
           .attr("d", path)
           .style("stroke-width", "1")
-          .style("stroke", "black");
+          .style("stroke", rgb)
+          .on('mouseenter', function(d, i) {
+            console.log(d.properties.cell_id);
+            d3.selectAll('path.cell')
+              .attr("fill-opacity", function (d, j) {
+                  return j == i ? "1" : "0.7";
+              });
+            });
+
       };
 
       var poll;
