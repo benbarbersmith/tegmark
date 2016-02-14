@@ -25,20 +25,6 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         .attr("height", "100%")
         .attr("fill", "#fff");
 
-      svg.append("svg:g")
-        .append("path")
-        .datum({type: "Sphere"})
-        .attr("id", "sphere")
-        .attr("d", path);
-
-      svg.append("use")
-        .attr("class", "stroke")
-        .attr("xlink:href", "#sphere");
-
-      svg.append("use")
-        .attr("class", "fill")
-        .attr("xlink:href", "#sphere");
-
       var λ = d3.scale.linear()
         .domain([0, width])
         .range([-180, 180]);
@@ -153,6 +139,20 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
 
       var render = function() {
         console.log("Rendering map.");
+        svg.append("svg:g")
+          .append("path")
+          .datum({type: "Sphere"})
+          .attr("id", "sphere")
+          .attr("d", path);
+
+        svg.append("use")
+          .attr("class", "stroke")
+          .attr("xlink:href", "#sphere");
+
+        svg.append("use")
+          .attr("class", "fill")
+          .attr("xlink:href", "#sphere")
+
         svg.selectAll(".subunit")
           .data(scope.world.geography.features)
           .enter().append("path")
@@ -179,7 +179,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
 
       scope.$watch("world", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
-          svg.selectAll("path.cell").remove();
+          svg.selectAll("*").remove();
           if(typeof scope.world !== 'undefined' && scope.status == "complete") {
             if(typeof poll !== 'undefined') $interval.cancel(poll);
             render();
