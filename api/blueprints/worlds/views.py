@@ -53,8 +53,24 @@ def about_page():
     return Response(json.dumps({'tegmark_version' : tegmark_label, 'everett_version' : everett_label}), 200, json_headers())
 
 
-@blueprint_api.route('/world/<world_id>')
+@blueprint_api.route('/world/<world_id>', methods=['GET', 'PUT'])
 def get_world(world_id=None):
+    if request.method == 'PUT':
+        try:
+            user_data = request.get_json()
+        except Exception as e:
+            return Response(json.dumps({'error' : 'Bad Request', 'message' : u"Malformed JSON? {}".format(e)}), 400, json_headers())
+        world_update = {}
+        if 'name' in user_data:
+            world_update['name'] = user_data['name']
+        if 'properties' in user_data:
+            world_update['properties'] = user_data['properties']
+
+        result = worldclient.issue_world_command({'command': 'update_world', 'world_id': world_id, 'update' : world_update})
+        if result['result'] == 'success':
+            return Response("", 204, json_headers())
+        else:
+            return Response(json.dumps({'error' : result.get('error', "Unable to update")}), 422, json_headers())
     got_world = worldclient.issue_world_command({'command': 'get_world', 'world_id': world_id})
     if got_world['result'] == 'success':
         return Response(json.dumps(got_world), 200, json_headers())
@@ -65,6 +81,7 @@ def get_world(world_id=None):
 @blueprint_api.route('/world/<world_id>/cell/<float:lon>,<float:lat>')
 def get_world_cell(world_id=None, lat=0.0, lon=0.0):
     return Response(json.dumps(worldclient.issue_world_command({'command': 'get_world_cell', 'world_id': world_id, 'lat' : lat, 'lon' : lon})), 200, json_headers())
+
 
 @blueprint_api.route('/worlds/', methods=['GET', 'POST'])
 def worlds():
