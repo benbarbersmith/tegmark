@@ -19,7 +19,7 @@ def list_safe_world(w):
 
 
 def json_safe_cell(world_id, c):
-    return {'world_id' : world_id, 'cell_id' : [c.centre.lon, c.centre.lat], 'boundary_points' : [{'boundary_id' : [b.lon, b.lat], 'wood' : 0, 'meat' : 0, 'ore' : 0} for b in c.nodes]}
+    return {'world_id' : world_id, 'cell_id' : [c.centre.lon, c.centre.lat], 'boundary_points' : [{'boundary_id' : [b.lon, b.lat], 'altitude' : b.alt} for b in c.nodes]}
 
 sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'geography' : geography.make_fake_geography(), 'topography': None, 'status' : 'complete'}
 
