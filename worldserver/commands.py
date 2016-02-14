@@ -4,10 +4,62 @@ everett worlds kept in memory
 """
 
 import random
+import re
 from threading import Thread
 
 import generation
 import geography
+
+
+world_id_regex = re.compile("[a-f0-9]{8}")
+
+class WorldHolder(object):
+    def __init__(self, id, name, properties={}):
+        self._id = id
+        self._properties = properties
+        self._name = name
+        self._geography = None
+        self._topography = None
+        self._everett = None
+
+    @property
+    def status(self):
+        if self._geography is None:
+            return "generating"
+        else:
+            return "complete"
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def everett(self):
+        return self._everett
+
+    @everett.setter
+    def everett(self, everett):
+        self._everett = everett
+
+    @property
+    def geography(self):
+        return self._geography
+
+    @geography.setter
+    def geography(self, geography):
+        self._geography = geography
+
+    def __dict__(self):
+        return {
+            'name' : self._name,
+            'properties' : self._properties,
+            'geography' : self._geography,
+            'topography' : self._topography,
+            'status' : self.status
+        }
+
+    def iteritems(self):
+        return self.__dict__().iteritems()
 
 
 def json_safe_world(w):
@@ -34,12 +86,14 @@ def resolve_command(command, global_state_dict, global_lock):
 
     if 'command' in command:
         if command['command'] == 'create_new_world':
-            new_world_id = "{:08x}".format(random.getrandbits(32))
+            if "world_id" in command and world_id_regex.match(command["world_id"]) is not None:
+                new_world_id = command["world_id"]
+            else:
+                new_world_id = "{:08x}".format(random.getrandbits(32))
             # t = geography.geography_to_topography(g)
             n = "World {}".format(int(new_world_id, 16))
             global_lock.acquire()
-            global_state_dict[new_world_id] = {'properties': { 'foo' : 'bar' }, 'name' : n, 'geography' : None,
-                                               'topography': None, 'status' : 'generating'}
+            global_state_dict[new_world_id] = WorldHolder(new_world_id, n)
             global_lock.release()
             g_thread = Thread(target=generation.add_world_geography, args=(new_world_id, global_state_dict, global_lock))
             g_thread.start()
@@ -53,6 +107,8 @@ def resolve_command(command, global_state_dict, global_lock):
             elif world_id == "sample":
                 return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(sample_world)}
             elif world_id not in global_state_dict:
+                if world_id_regex.match(world_id) is not None:
+                    return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
                 return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(global_state_dict[world_id])}
@@ -66,7 +122,7 @@ def resolve_command(command, global_state_dict, global_lock):
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
                 try:
-                    cell = global_state_dict[world_id]['everett'].cells_by_centre_loc.get(tuple((lon, lat)))
+                    cell = global_state_dict[world_id].everett.cells_by_centre_loc.get(tuple((lon, lat)))
                 except KeyError as e:
                     return {'result' : 'error', 'error' : "world {} has not finished generating!".format(world_id)}
                 if cell is None:
