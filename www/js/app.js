@@ -1,6 +1,6 @@
 'use strict';
 
-var serverUrl = "http://localhost:15000/api"
+var serverUrl = "http://192.168.0.27:15000/api"
 
 var tegmarkApp = angular.module('tegmarkApp', [
   'ngRoute',
@@ -274,8 +274,16 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
 
       var i = 0;
       var colors = ["firebrick", "yellowgreen", "dodgerblue", "gold"];
-      var getId = function() {
+	  var colourMap = {
+		'sea' : '#3498db',
+		'lowlands' : '#27ae60',
+		'highlands' : '#c0392b',
+		'alpine' : '#95a5a6'
+	  }
+      var getId = function(d) {
+		//console.log(d.properties.terrain_type);
         i++;
+		return colourMap[d.properties.terrain_type];
         return colors[i % colors.length];
       }
 
@@ -293,7 +301,7 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
             .data(scope.data.features)
             .enter().append("path")
             .attr("class", "land")
-            .attr("fill", function(d) { return getId(); })
+            .attr("fill", function(d) { return getId(d); })
             .attr("fill-opacity", "0.8")
             .attr("d", path)
             .style("stroke-width", "1")
