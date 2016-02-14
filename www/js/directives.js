@@ -38,35 +38,41 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
       var path = d3.geo.path().projection(projection);
 
   	  var zoomed = function() {
-  	    projection.translate(d3.event.translate).scale(d3.event.scale);
+  	    projection.scale(d3.event.scale);
   	    svg.selectAll("path").attr("d", path);
   	  }
 
       var zoom = d3.behavior.zoom()
-    		.translate(projection.translate())
     		.scale(projection.scale())
     		.on("zoom", zoomed);
 
-      zoom(svg);
+      var m0, o0;
+      var drag = d3.behavior.drag()
+        .on("dragstart", function() {
+          // Adapted from http://mbostock.github.io/d3/talk/20111018/azimuthal.html and updated for d3 v3
+          var proj = projection.rotate();
+          m0 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
+          o0 = [-proj[0],-proj[1]];
+          })
+        .on("drag", function() {
+          if (m0) {
+            var m1 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
+            var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
+            projection.rotate([-o1[0], -o1[1]]);
+          }
 
-      var rotateWorld = function() {
-        var p = d3.mouse(this);
-        projection.rotate([λ(p[0]), φ(p[1])]);
-        svg.selectAll("path").attr("d", path);
-      }
+          // Update the map
+          path = d3.geo.path().projection(projection);
+          d3.selectAll("path").attr("d", path);
+          });
 
-      var moving = false;
-      svg.on("click", function() {
-        moving = !moving;
-        if(moving) {
-          console.log("Enable rotation.");
-          svg.on("mousemove", rotateWorld)
-        }
-        else {
-          console.log("Disable rotation.");
-          svg.on("mousemove", function() {})
-        }
-      });
+      svg.call(zoom);
+      svg.call(drag);
+
+      svg.on("mousedown.zoom", null)
+        .on("touchstart.zoom", null)
+        .on("touchmove.zoom", null)
+        .on("touchend.zoom", null);
 
       var i = 0;
       var colors = ["firebrick", "yellowgreen", "dodgerblue", "gold"];
