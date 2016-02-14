@@ -85,13 +85,14 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
         .on("touchend.zoom", null);
 
       var colourMap = {
-		'sea' : '#3498db',
-		'lowlands' : '#27ae60',
-		'highlands' : '#c0392b',
-		'alpine' : '#95a5a6'
-	  }
+    		'sea' : '#3498db',
+    		'lowlands' : '#27ae60',
+    		'highlands' : '#c0392b',
+    		'alpine' : '#95a5a6'
+  	  }
+      
       var getId = function(d) {
-		return colourMap[d.properties.terrain_type];
+    		return colourMap[d.properties.terrain_type];
       }
 
       var render = function() {
