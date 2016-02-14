@@ -98,6 +98,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
       }
 
       var colourMap = {
+    		'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
     		'sea' : [rgb(57,139,207), rgb(0,62,130)],
     		'lowlands' : [rgb(100,189,41), rgb(81,161,35)],
     		'highlands' : [rgb(81,161,35), rgb(25,76,17)],
@@ -110,6 +111,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         highland_max = highland_max < 0 ? 0.000001 : highland_max;
         return {
       		'sea' : [-1, 0],
+			'permafrost' : [-1, 0],
       		'vegetation' : [0, highland_max],
           'lowlands' : [0, 0.05],
           'highlands' : [0.05, highland_max],
