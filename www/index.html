@@ -32,7 +32,10 @@
             <li class="{{active('world')}}"><a ng-href="#/worlds">Worlds</a></li>
             <li class="{{active('about')}}"><a ng-href="#/about">About</a></li>
 					</ul>
-          <p class="navbar-text navbar-right" ng-controller="IdCtrl"><a ng-show="id" ng-href="#/world/{{id}}">{{id}}</a></p>
+          <button class="btn btn-primary navbar-btn navbar-right" ng-controller="WorldListCtrl" ng-click="createAndVisitWorld()">
+            Visit new world
+          </button>
+          <p class="navbar-text navbar-right" id="currentWorldMsg" ng-controller="IdCtrl"><a ng-show="id" ng-href="#/world/{{id}}">Current world: {{id}}</a></p>
 				</div><!-- /.navbar-collapse -->
 			</div>
 		</nav>

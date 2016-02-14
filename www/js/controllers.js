@@ -6,8 +6,7 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', fun
   if(typeof $routeParams.worldId !== 'undefined')
     World.get($routeParams.worldId)
       .then(function(world) {
-         $scope.data = world.geography;
-         $scope.name = world.name;
+         $scope.data = world;
          $scope.id = $routeParams.worldId;
       });
   }]);
@@ -30,9 +29,16 @@ tegmarkControllers.controller('LocationCtrl', ['$scope', '$location', function($
   }]);
 
 
-tegmarkControllers.controller('WorldListCtrl', ['$scope', 'Worlds', function($scope, Worlds) {
+tegmarkControllers.controller('WorldListCtrl', ['$scope', '$location', 'Worlds', function($scope, $location, Worlds) {
   $scope.worlds = Worlds.list();
   $scope.createWorld = Worlds.create;
+  $scope.createAndVisitWorld = function() {
+    Worlds.create().then(function(id) {
+      console.log(id);
+      $location.path('/world/' + id);
+    });
+
+  }
 
   $scope.$watch(function () { return Worlds.list() }, function (newVal, oldVal) {
     if (typeof newVal !== 'undefined' && newVal != oldVal) {

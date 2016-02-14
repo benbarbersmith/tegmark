@@ -16,6 +16,10 @@ body {
   height: calc(100vh - 90px);
 }
 
+#currentWorldMsg {
+  padding-right: 20px;
+}
+
 #map {
   top: 20px;
   bottom: 20px;

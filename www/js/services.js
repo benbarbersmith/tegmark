@@ -84,10 +84,11 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
 
     worlds.create = function() {
       console.log("Creating new world.");
-      $http.post(serverUrl + '/worlds/')
+      return $http.post(serverUrl + '/worlds/')
       .then(function(httpResponse) {
         if(httpResponse == null) return null;
         worlds.refresh();
+        return httpResponse.data.world_id;
         })
       .catch(function(err) {
         console.error(err);
