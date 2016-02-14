@@ -57,6 +57,9 @@ def about_page():
 def get_world(world_id=None):
     return Response(json.dumps(worldclient.issue_world_command({'command': 'get_world', 'world_id': world_id})), 200, json_headers())
 
+@blueprint_api.route('/world/<world_id>/cell/<float:lon>,<float:lat>')
+def get_world_cell(world_id=None, lat=0.0, lon=0.0):
+    return Response(json.dumps(worldclient.issue_world_command({'command': 'get_world_cell', 'world_id': world_id, 'lat' : lat, 'lon' : lon})), 200, json_headers())
 
 @blueprint_api.route('/worlds/', methods=['GET', 'POST'])
 def worlds():
