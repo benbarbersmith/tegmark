@@ -13,6 +13,7 @@ import geography
 
 world_id_regex = re.compile("[a-f0-9]{8}")
 
+
 class WorldHolder(object):
     def __init__(self, id, name, properties={}):
         self._id = id
@@ -32,6 +33,18 @@ class WorldHolder(object):
     @property
     def name(self):
         return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+
+    @property
+    def properties(self):
+        return self._properties.copy()
+
+    @properties.setter
+    def properties(self, properties):
+        self._properties = {key: value for key, value in properties.iteritems()}  # and fail if it's not dict like
 
     @property
     def everett(self):
@@ -112,6 +125,25 @@ def resolve_command(command, global_state_dict, global_lock):
                 return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
             else:
                 return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(global_state_dict[world_id])}
+        elif command['command'] == 'update_world':
+            world_id = command.get('world_id', None)
+            if world_id is None:
+                return {'result' : 'error', 'error' : 'must specify world_id'}
+            elif world_id not in global_state_dict:
+                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
+            if 'update' not in command:
+                return {'result' : 'error', 'error' : "nothing to update!"}
+            result = {'result' : 'error', 'error' : "unable to update!"}
+            try:
+                global_lock.acquire()
+                if 'properties' in command['update']:
+                    global_state_dict[world_id].properties = command['update']['properties']
+                if 'name' in command['update']:
+                    global_state_dict[world_id].name = command['update']['name']
+                result = {'result' : 'success'}
+            finally:
+                global_lock.release()
+            return result
         elif command['command'] == 'get_world_cell':
             world_id = command.get('world_id', None)
             lat = command.get('lat', None)
