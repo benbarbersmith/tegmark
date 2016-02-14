@@ -46,42 +46,53 @@ tegmarkDirectives.directive('map', ['d3', function(d3) {
     		.scale(projection.scale())
     		.on("zoom", zoomed);
 
-      var m0, o0;
-      var drag = d3.behavior.drag()
-        .on("dragstart", function() {
-          // Adapted from http://mbostock.github.io/d3/talk/20111018/azimuthal.html and updated for d3 v3
-          var proj = projection.rotate();
-          m0 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
-          o0 = [-proj[0],-proj[1]];
-          })
-        .on("drag", function() {
-          if (m0) {
-            var m1 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
-            var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
-            projection.rotate([-o1[0], -o1[1]]);
-          }
+      var getEvent = function(event){
+        if(typeof event.sourceEvent !== 'undefined') {
+          return d3.event.sourceEvent;
+        } else if(typeof event.changedTouches !== 'undefined') {
+          return d3.event.changedTouches[0];
+        } else  {
+          return d3.event;
+        }
+      }
 
-          // Update the map
-          path = d3.geo.path().projection(projection);
-          d3.selectAll("path").attr("d", path);
-          });
+      var m0, o0;
+      var dstart = function() {
+        var proj = projection.rotate();
+        var event = getEvent(d3.event);
+        m0 = [event.pageX, event.pageY];
+        o0 = [-proj[0],-proj[1]];
+      }
+      var dmove = function() {
+        if (m0) {
+          var event = getEvent(d3.event);
+          var m1 = [event.pageX, event.pageY];
+          var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
+          projection.rotate([-o1[0], -o1[1]]);
+        }
+
+        path = d3.geo.path().projection(projection);
+        d3.selectAll("path").attr("d", path);
+      }
 
       svg.call(zoom);
-      svg.call(drag);
 
-      svg.on("mousedown.zoom", null)
-        .on("touchstart.zoom", null)
-        .on("touchmove.zoom", null)
+      svg.on("mousedown.zoom", dstart)
+        .on("mousemove.zoom", dmove)
+        .on("mouseup.zoom", function() { m0 = false; })
+        .on("touchstart.zoom", dstart)
+        .on("touchmove.zoom", dmove)
         .on("touchend.zoom", null);
 
       var colourMap = {
-		'sea' : '#3498db',
-		'lowlands' : '#27ae60',
-		'highlands' : '#c0392b',
-		'alpine' : '#95a5a6'
-	  }
+    		'sea' : '#3498db',
+    		'lowlands' : '#27ae60',
+    		'highlands' : '#c0392b',
+    		'alpine' : '#95a5a6'
+  	  }
+      
       var getId = function(d) {
-		return colourMap[d.properties.terrain_type];
+    		return colourMap[d.properties.terrain_type];
       }
 
       var render = function() {
