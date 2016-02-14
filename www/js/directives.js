@@ -2,7 +2,7 @@
 
 var tegmarkDirectives = angular.module('tegmarkDirectives', ['tegmarkServices']);
 
-tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interval, d3, World) {
+tegmarkDirectives.directive('map', ['$interval', '$window', 'd3', 'World', function($interval, $window, d3, World) {
   return {
     restrict: 'E',
     scope: {
@@ -10,9 +10,6 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
       status: "="
     },
     link: function(scope, elements, attrs) {
-      var parent = elements[0].offsetParent;
-      var width = parent.offsetWidth;
-      var height = parent.offsetHeight;
 
       var svg = d3.select(elements[0])
         .append("svg")
@@ -33,9 +30,12 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
         .domain([0, height])
         .range([90, -90]);
 
-      var offset = [(width-90)/2, (height-90)/2];
+      var width = elements[0].offsetWidth;
+      var height = elements[0].offsetParent.offsetHeight;
+      var scale = 0.9 * 360;
+      var offset = [width/2, (height-90)/2];
       var projection = d3.geo.orthographic()
-        .scale(250)
+        .scale(scale)
         .clipAngle(90)
         .translate(offset);
 
@@ -182,6 +182,19 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', function($interv
       };
 
       var poll;
+
+      angular.element($window).bind('resize', function(){
+        var width = elements[0].offsetWidth;
+        var height = elements[0].offsetParent.offsetHeight;
+        var scale = 0.9 * 360;
+        projection = d3.geo.orthographic()
+          .scale(scale)
+          .clipAngle(90)
+          .translate([(width)/2, (height-90)/2]);
+        path = d3.geo.path().projection(projection);
+        console.log("updating translation");
+        svg.selectAll("path").attr("d", path);
+      });
 
       scope.$watch("world", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal != oldVal) {
