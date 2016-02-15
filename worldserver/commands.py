@@ -62,6 +62,14 @@ class WorldHolder(object):
     def geography(self, geography):
         self._geography = geography
 
+    @property
+    def topography(self):
+        return self._topography
+
+    @geography.setter
+    def topography(self, topography):
+        self._topography = topography
+
     def __dict__(self):
         return {
             'name' : self._name,

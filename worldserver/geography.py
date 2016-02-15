@@ -1,7 +1,7 @@
 import math
 from geojson import FeatureCollection, Feature, Polygon
 import json
-# import StringIO
+from StringIO import StringIO
 
 # import everett
 
@@ -30,7 +30,16 @@ def geography_from_everett_world(world):
                                         properties={'cell_id':[cell.centre.lon, cell.centre.lat],
                                                     'terrain_type' : terrain_type['terrain_type'], 'altitude' : terrain_type['altitude'] }))
     return FeatureCollection(geo_features)
+    
 
+def topography_from_geography(geography):
+    from topojson import topojson
+    # out_io = StringIO()
+    # in_io = StringIO()
+    # in_io.write()
+    # in_io.seek(0)
+    topography = topojson(json.loads(json.dumps(geography)), None)  # topojson parameters here?
+    return topography  # json.loads(out_io.getValue())
 
 def cell_terrain_type(cell):
     #=(((-0.8)*E1^2 + 3800))
