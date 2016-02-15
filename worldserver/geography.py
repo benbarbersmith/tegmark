@@ -6,11 +6,11 @@ from StringIO import StringIO
 # import everett
 
 
-def make_fake_geography():
+def make_fake_topography():
     g = ""
     with open('worldserver/sample_geojson.json', 'r') as f:
         g = f.read()
-    return json.loads(g)
+    return topography_from_geography(json.loads(g))
 
 
 def geography_from_everett_world(world):
@@ -30,7 +30,7 @@ def geography_from_everett_world(world):
                                         properties={'cell_id':[cell.centre.lon, cell.centre.lat],
                                                     'terrain_type' : terrain_type['terrain_type'], 'altitude' : terrain_type['altitude'] }))
     return FeatureCollection(geo_features)
-    
+
 
 def topography_from_geography(geography):
     from topojson import topojson
@@ -38,7 +38,7 @@ def topography_from_geography(geography):
     # in_io = StringIO()
     # in_io.write()
     # in_io.seek(0)
-    topography = topojson(json.loads(json.dumps(geography)), None)  # topojson parameters here?
+    topography = topojson(json.loads(json.dumps(geography)), None, "land")  # topojson parameters here?
     return topography  # json.loads(out_io.getValue())
 
 def cell_terrain_type(cell):

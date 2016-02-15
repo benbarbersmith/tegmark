@@ -19,13 +19,12 @@ class WorldHolder(object):
         self._id = id
         self._properties = properties
         self._name = name
-        self._geography = None
         self._topography = None
         self._everett = None
 
     @property
     def status(self):
-        if self._geography is None:
+        if self._topography is None:
             return "generating"
         else:
             return "complete"
@@ -55,18 +54,10 @@ class WorldHolder(object):
         self._everett = everett
 
     @property
-    def geography(self):
-        return self._geography
-
-    @geography.setter
-    def geography(self, geography):
-        self._geography = geography
-
-    @property
     def topography(self):
         return self._topography
 
-    @geography.setter
+    @topography.setter
     def topography(self, topography):
         self._topography = topography
 
@@ -74,7 +65,6 @@ class WorldHolder(object):
         return {
             'name' : self._name,
             'properties' : self._properties,
-            'geography' : self._geography,
             'topography' : self._topography,
             'status' : self.status
         }
@@ -84,7 +74,7 @@ class WorldHolder(object):
 
 
 def json_safe_world(w):
-    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'geography', 'topography', 'status']}
+    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'topography', 'status']}
 
 
 def list_safe_world(w):
@@ -94,7 +84,7 @@ def list_safe_world(w):
 def json_safe_cell(world_id, c):
     return {'world_id' : world_id, 'cell_id' : [c.centre.lon, c.centre.lat], 'boundary_points' : [{'boundary_id' : [b.lon, b.lat], 'altitude' : b.alt} for b in c.nodes]}
 
-sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'geography' : geography.make_fake_geography(), 'topography': None, 'status' : 'complete'}
+sample_world = {'properties': { 'foo' : 'bar' }, 'name' : "sample", 'topography': geography.make_fake_topography(), 'status' : 'complete'}
 
 
 def resolve_command(command, global_state_dict, global_lock):
@@ -111,12 +101,11 @@ def resolve_command(command, global_state_dict, global_lock):
                 new_world_id = command["world_id"]
             else:
                 new_world_id = "{:08x}".format(random.getrandbits(32))
-            # t = geography.geography_to_topography(g)
             n = "World {}".format(int(new_world_id, 16))
             global_lock.acquire()
             global_state_dict[new_world_id] = WorldHolder(new_world_id, n)
             global_lock.release()
-            g_thread = Thread(target=generation.add_world_geography, args=(new_world_id, global_state_dict, global_lock))
+            g_thread = Thread(target=generation.add_world_topography, args=(new_world_id, global_state_dict, global_lock))
             g_thread.start()
             return {'result' : 'success', 'world_id' : new_world_id, 'world' : json_safe_world(global_state_dict[new_world_id])}
         elif command['command'] == 'list_worlds':
@@ -148,8 +137,8 @@ def resolve_command(command, global_state_dict, global_lock):
                     global_state_dict[world_id].properties = command['update']['properties']
                 if 'name' in command['update']:
                     global_state_dict[world_id].name = command['update']['name']
-                if 'geography' in command['update']:
-                    global_state_dict[world_id].everett.create_altitude_chains(command['update']['geography'])
+                if 'topography' in command['update']:
+                    global_state_dict[world_id].everett.create_altitude_chains(command['update']['topography'])
                 result = {'result' : 'success'}
             finally:
                 global_lock.release()

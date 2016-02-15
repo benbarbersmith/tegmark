@@ -151,8 +151,9 @@ tegmarkDirectives.directive('map', ['$interval', '$window', 'd3', 'World', funct
           .attr("class", "fill")
           .attr("xlink:href", "#sphere")
 
+        console.log(scope.world.topography);
         svg.selectAll(".subunit")
-          .data(scope.world.geography.features)
+          .data(topojson.feature(scope.world.topography, scope.world.topography.objects.land).features)
           .enter().append("path")
           .attr("class", "cell")
           .attr("fill", function(d) {
@@ -215,7 +216,7 @@ tegmarkDirectives.directive('map', ['$interval', '$window', 'd3', 'World', funct
               .attr("fill", "#777");
               ;
             if(scope.status == "generating") {
-              poll = $interval(World.poll, 200);
+              poll = $interval(World.poll, 1000);
             } else {
               if(typeof poll !== 'undefined') $interval.cancel(poll);
             }
