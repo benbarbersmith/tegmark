@@ -39,3 +39,5 @@ Built with Flask. Instructions:
 1. `pip install -r requirements.txt`
 2. `python worldserver.py`
 3. `python webserver.py`
+
+![Progress after first weekend](http://imgur.com/ggQsPx5)
