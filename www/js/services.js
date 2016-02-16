@@ -180,3 +180,287 @@ tegmarkServices.factory('d3', [function() {
       // end d3 source
     return d3;
   }]);
+
+tegmarkServices.factory('Renderer', ['$window', function($window) {
+  function renderer(type, base_element) {
+    var width = 1,
+        height = 1,
+        scale = 0.9 * 360,
+        projection = d3.geo.orthographic()
+          .scale(scale)
+          .clipAngle(90)
+          .translate([(width)/2, (height-90)/2]);
+
+    var vis, context, path, poll, translate, world, status;
+
+    var zoomed = function() {
+      scale = d3.event.scale;
+      projection = projection.scale(scale);
+      render();
+    }
+
+    var zoom = d3.behavior.zoom()
+      .scale(projection.scale())
+      .on("zoom", zoomed);
+
+    var getEvent = function(event){
+      if(typeof event.sourceEvent !== 'undefined') {
+        return d3.event.sourceEvent;
+      } else if(typeof event.changedTouches !== 'undefined') {
+        return d3.event.changedTouches[0];
+      } else  {
+        return d3.event;
+      }
+    }
+
+    var m0 = false, o0;
+    var dstart = function() {
+      var proj = projection.rotate();
+      var event = getEvent(d3.event);
+      m0 = [event.pageX, event.pageY];
+      o0 = [-proj[0],-proj[1]];
+    }
+    var dmove = function() {
+      if (m0) {
+        var event = getEvent(d3.event);
+        var m1 = [event.pageX, event.pageY];
+        var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
+        projection = projection.rotate([-o1[0], -o1[1]]);
+        path = d3.geo.path().projection(projection);
+        render();
+      }
+    }
+
+    var rgb = function(r, g, b) {
+      return [r,g,b];
+    }
+
+    var colourMix = function(bounds, distance, direction) {
+      return [0,1,2].map(function(i) {
+        var range = bounds[1][i] - bounds[0][i];
+        var direction = (bounds[0][i] < bounds[1][i]) ? 1 : -1;
+        return Math.round(bounds[0][i] + range*distance*direction);
+      });
+    }
+
+    var colourMap = {
+      'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
+      'sea' : [rgb(57,139,207), rgb(0,62,130)],
+      'lowlands' : [rgb(100,189,41), rgb(81,161,35)],
+      'highlands' : [rgb(81,161,35), rgb(25,76,17)],
+      'vegetation' : [rgb(100,189,41), rgb(25,76,17)],
+      'alpine' : [rgb(150,109,33), rgb(255,255,255)]
+    }
+
+    var altitudeMapByLatitude = function(latitude) {
+      var highland_max = (-0.8*latitude*latitude + 3800) / 10000;
+      highland_max = highland_max < 0 ? 0.000001 : highland_max;
+      return {
+        'sea' : [-1, 0],
+        'permafrost' : [-1, 0],
+        'vegetation' : [0, highland_max],
+        'lowlands' : [0, 0.05],
+        'highlands' : [0.05, highland_max],
+        'alpine' : [highland_max, 1]
+      };
+    }
+
+    var getColorByAltitude = function(d, a) {
+      var latitude = d.geometry.coordinates[0].reduce(function(acc, i) {
+        acc += i[1];
+        return acc;
+      }, 0) / d.geometry.coordinates[0].length;
+      var terrain = d.properties.terrain_type;
+      var altitudeBounds = altitudeMapByLatitude(latitude)[terrain];
+      var colourBounds = colourMap[terrain];
+      var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
+      var rgb = colourMix(colourBounds, distance);
+      if(typeof a !== 'undefined') {
+        return "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+","+a+")";
+      } else {
+        return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+      }
+    }
+
+    var rendererFunctions = {
+      "canvas": {
+        "setup": function() {
+          vis = d3.select(base_element)
+            .append("canvas")
+            .attr("width", "1px")
+            .attr("height", "1px")
+
+          context = vis.node().getContext("2d");
+          return {
+            "vis": vis,
+            "context": context
+          };
+        },
+
+        "resize": function() {
+          if(base_element.offsetParent == null) return null;
+          width = base_element.offsetParent.offsetWidth - 2 * base_element.offsetLeft;
+          height = base_element.offsetParent.offsetHeight - 1.5 * base_element.offsetTop;
+          vis[0][0].width = width;
+          vis[0][0].height = height;
+          vis[0][0].style = "border: rgb(231, 231, 231) 1px solid;";
+          projection = projection.scale(scale)
+            .translate([(width)/2, (height-90)/2]);
+          path = d3.geo.path().projection(projection);
+        },
+
+        "renderMap": function() {
+          context.clearRect(0, 0, width, height);
+          context.save();
+
+          console.log("Rendering map.");
+
+          var globe = {type: "Sphere"};
+
+          context.strokeStyle = '#777';
+          context.fillStyle = '#FFF';
+          context.beginPath();
+          path.context(context)(globe);
+          context.fill();
+          context.stroke();
+
+          var cells = topojson.feature(world.topography, world.topography.objects.land).features;
+
+          cells.forEach(function(d, i) {
+            var color = getColorByAltitude(d, 0.7);
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.beginPath();
+            path.context(context)(d);
+            context.fill();
+            context.stroke();
+          });
+
+          context.restore();
+          //console.log("Finished rendering map.");
+        },
+
+        "renderText": function() {
+          context.fillStyle = "#777";
+          context.font = "18px Helvetica Neue,Helvetica,Arial,sans-serif";
+          context.textAlign = "center";
+          context.textBaseline = "hanging";
+          context.fillText("Generating world...", Math.round(width/2), Math.round(height/2));
+        }
+      },
+      "svg": {
+        "setup": function() {
+          var vis = d3.select(base_element)
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("style", "border: rgb(231, 231, 231) 1px solid;");
+
+          vis.append("rect")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("fill", "#fff");
+
+          return {
+            "vis": vis,
+            "context": null
+          };
+        },
+
+        "resize": function() {
+          width = base_element.offsetWidth;
+          height = base_element.offsetParent.offsetHeight;
+          projection = projection.scale(scale)
+            .translate([width/2, (height-90)/2]);
+
+          path = d3.geo.path().projection(projection);
+        },
+
+        "renderMap": function() {
+          vis.append("svg:g")
+            .append("path")
+            .datum({type: "Sphere"})
+            .attr("id", "sphere")
+            .attr("d", path);
+
+          vis.append("use")
+            .attr("class", "stroke")
+            .attr("xlink:href", "#sphere");
+
+          vis.append("use")
+            .attr("class", "fill")
+            .attr("xlink:href", "#sphere")
+
+          vis.selectAll(".subunit")
+            .data(topojson.feature(world.topography, world.topography.objects.land).features)
+            .enter().append("path")
+            .attr("class", "cell")
+            .attr("fill", function(d) {
+              return getColorByAltitude(d);
+            })
+            .attr("fill-opacity", "0.7")
+            .attr("d", path)
+            .style("stroke-width", "1")
+            .style("stroke", rgb)
+        },
+
+        "renderText": function() {
+          svg.append("text")
+            .text("Generating world...")
+            .attr("x", "50%")
+            .attr("y", "50%")
+            .attr("alignment-baseline", "middle")
+            .attr("text-anchor", "middle")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", "18px")
+            .attr("fill", "#777");
+            ;
+        }
+      }
+    };
+
+    var functions = rendererFunctions[type];
+    var renderText = functions.renderText;
+    var renderMap = functions.renderMap;
+    var resize = functions.resize;
+
+    var setupResults = functions.setup();
+    vis = setupResults.vis;
+    context = setupResults.context;
+
+    vis.call(zoom);
+
+    vis.on("mousedown.zoom", dstart)
+      .on("mousemove.zoom", dmove)
+      .on("mouseup.zoom", function() { m0 = false; })
+      .on("touchstart.zoom", dstart)
+      .on("touchmove.zoom", dmove)
+      .on("touchend.zoom", function() { m0 = false; });
+
+    var render = function() {
+      if(typeof world !== 'undefined' && typeof status !== 'undefined') {
+        if(status == "complete") {
+          if(typeof poll !== 'undefined') $interval.cancel(poll);
+          renderMap();
+        }
+        else {
+          renderText();
+        }
+      }
+    }
+
+    this.render = function(newWorld, newStatus) {
+      world = newWorld;
+      status = newStatus;
+      resize();
+      render();
+    }
+
+    angular.element($window).bind('resize', function(){
+      resize();
+      render();
+    });
+  }
+
+  return renderer;
+}]);
