@@ -40,4 +40,4 @@ Built with Flask. Instructions:
 2. `python worldserver.py`
 3. `python webserver.py`
 
-![Progress after first weekend](http://imgur.com/ggQsPx5)
+![Progress after first weekend](http://i.imgur.com/ggQsPx5.png)
