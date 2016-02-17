@@ -51,23 +51,21 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
   var active = false;
 
   world.get = function(world_id) {
-    if(!active) {
-      active = true;
-      return $http.get(serverUrl + '/world/' + world_id)
-      	.then(function(httpResponse) {
-          if(httpResponse == null) return null;
-          console.log("Loading world data.");
-          active = false;
-          world.id = httpResponse.data.world_id;
-          world.name = httpResponse.data.world.name;
-          world.status = httpResponse.data.world.status;
-          world.data = httpResponse.data;
-          return httpResponse.data.world;
-          })
-      	.catch(function(err) {
-          console.error(err);
-          });
-    }
+
+    return $http.get(serverUrl + '/world/' + world_id)
+    	.then(function(httpResponse) {
+        if(httpResponse == null) return null;
+        console.log("Polling for world data.");
+        active = false;
+        world.id = httpResponse.data.world_id;
+        world.name = httpResponse.data.world.name;
+        world.status = httpResponse.data.world.status;
+        world.data = httpResponse.data;
+        return httpResponse.data.world;
+        })
+    	.catch(function(err) {
+        console.error(err);
+        });
   }
 
   world.getInfo = function() {
@@ -182,26 +180,14 @@ tegmarkServices.factory('d3', [function() {
   }]);
 
 tegmarkServices.factory('Renderer', ['$window', function($window) {
-  function renderer(type, base_element) {
-    var width = 1,
-        height = 1,
-        scale = 0.9 * 360,
-        projection = d3.geo.orthographic()
-          .scale(scale)
-          .clipAngle(90)
-          .translate([(width)/2, (height-90)/2]);
-
-    var vis, context, path, poll, translate, world, status;
+  function renderer(type, base_element, buckets) {
+    var poll, world, status;
 
     var zoomed = function() {
-      scale = d3.event.scale;
-      projection = projection.scale(scale);
-      render();
+      renderObjects.scale = d3.event.scale;
+      renderObjects.projection = renderObjects.projection.scale(renderObjects.scale);
+      render(renderObjects, world, status);
     }
-
-    var zoom = d3.behavior.zoom()
-      .scale(projection.scale())
-      .on("zoom", zoomed);
 
     var getEvent = function(event){
       if(typeof event.sourceEvent !== 'undefined') {
@@ -215,7 +201,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
     var m0 = false, o0;
     var dstart = function() {
-      var proj = projection.rotate();
+      var proj = renderObjects.projection.rotate();
       var event = getEvent(d3.event);
       m0 = [event.pageX, event.pageY];
       o0 = [-proj[0],-proj[1]];
@@ -225,9 +211,9 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
         var event = getEvent(d3.event);
         var m1 = [event.pageX, event.pageY];
         var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
-        projection = projection.rotate([-o1[0], -o1[1]]);
-        path = d3.geo.path().projection(projection);
-        render();
+        renderObjects.projection = renderObjects.projection.rotate([-o1[0], -o1[1]]);
+        renderObjects.path = d3.geo.path().projection(renderObjects.projection);
+        render(renderObjects, world, status);
       }
     }
 
@@ -235,21 +221,29 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       return [r,g,b];
     }
 
-    var colourMix = function(bounds, distance, direction) {
-      return [0,1,2].map(function(i) {
-        var range = bounds[1][i] - bounds[0][i];
-        var direction = (bounds[0][i] < bounds[1][i]) ? 1 : -1;
-        return Math.round(bounds[0][i] + range*distance*direction);
+    var colourMix = function(bounds, distance, direction, buckets) {
+      var steps = [];
+      var ranges = [];
+      var num_steps = [0,1,2].map(function(i) {
+        ranges[i] = bounds[1][i] - bounds[0][i]; //-7
+        var step = ranges[i] / buckets; //-15.4
+        steps[i] = (step == Math.abs(step)) ? Math.ceil(step) : Math.floor(step); //-16
+        return Math.floor(ranges[i]*distance*direction / steps[i]);
+      });
+      return rgb = [0,1,2].map(function(i) {
+        var base = (direction > 0) ? bounds[0][i] : bounds[1][i];
+        var colour = Math.round(base + Math.min(...num_steps) * steps[i]);
+        //var colour = Math.round(bounds[0][i] + ranges[i]*distance*direction);
+        return colour;
       });
     }
 
     var colourMap = {
       'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
-      'sea' : [rgb(57,139,207), rgb(0,62,130)],
-      'lowlands' : [rgb(100,189,41), rgb(81,161,35)],
-      'highlands' : [rgb(81,161,35), rgb(25,76,17)],
-      'vegetation' : [rgb(100,189,41), rgb(25,76,17)],
-      'alpine' : [rgb(150,109,33), rgb(255,255,255)]
+      'sea' : [rgb(157,228,255), rgb(56,150,226)],
+      'lowlands' : [rgb(173,230,136), rgb(142,223,108)],
+      'highlands' : [rgb(142,223,108), rgb(135,191,102)],
+      'alpine' : [rgb(185,157,107), rgb(255,255,255)]
     }
 
     var altitudeMapByLatitude = function(latitude) {
@@ -258,25 +252,21 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       return {
         'sea' : [-1, 0],
         'permafrost' : [-1, 0],
-        'vegetation' : [0, highland_max],
         'lowlands' : [0, 0.05],
         'highlands' : [0.05, highland_max],
         'alpine' : [highland_max, 1]
       };
     }
 
-    var getColorByAltitude = function(d, a) {
-      var latitude = d.geometry.coordinates[0].reduce(function(acc, i) {
-        acc += i[1];
-        return acc;
-      }, 0) / d.geometry.coordinates[0].length;
-      var terrain = d.properties.terrain_type;
+    var getColourByAltitude = function(altitude, latitude, terrain, alpha, buckets) {
       var altitudeBounds = altitudeMapByLatitude(latitude)[terrain];
       var colourBounds = colourMap[terrain];
-      var distance = (d.properties.altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
-      var rgb = colourMix(colourBounds, distance);
+      var distance = (altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
+      //distance = Math.floor(distance * buckets) / buckets;
+      var direction = altitudeBounds[1] > 0 ? 1 : -1;
+      var rgb = colourMix(colourBounds, distance, direction, buckets);
       if(typeof a !== 'undefined') {
-        return "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+","+a+")";
+        return "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+","+alpha+")";
       } else {
         return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
       }
@@ -284,72 +274,107 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
     var rendererFunctions = {
       "canvas": {
-        "setup": function() {
-          vis = d3.select(base_element)
+        "setup": function(base_element) {
+          var width = 1,
+              height = 1,
+              scale = 0.9 * 360,
+              projection = d3.geo.orthographic()
+                .scale(scale)
+                .clipAngle(90)
+                .translate([(width)/2, (height-90)/2]);
+
+          var vis = d3.select(base_element)
             .append("canvas")
             .attr("width", "1px")
             .attr("height", "1px")
+            .attr("style", "border: rgb(231, 231, 231) 1px solid;");
 
-          context = vis.node().getContext("2d");
+          //vis[0][0].style = "border: rgb(231, 231, 231) 1px solid;";
+
+          var context = vis.node().getContext("2d");
+
           return {
             "vis": vis,
-            "context": context
+            "context": context,
+            "base_element": base_element,
+            "width": width,
+            "height": height,
+            "scale": scale,
+            "projection": projection
           };
         },
 
-        "resize": function() {
-          if(base_element.offsetParent == null) return null;
-          width = base_element.offsetParent.offsetWidth - 2 * base_element.offsetLeft;
-          height = base_element.offsetParent.offsetHeight - 1.5 * base_element.offsetTop;
-          vis[0][0].width = width;
-          vis[0][0].height = height;
-          vis[0][0].style = "border: rgb(231, 231, 231) 1px solid;";
-          projection = projection.scale(scale)
-            .translate([(width)/2, (height-90)/2]);
-          path = d3.geo.path().projection(projection);
+        "resize": function(renderObjects) {
+          if(renderObjects.base_element.offsetParent == null) return null;
+          renderObjects.width = renderObjects.base_element.offsetParent.offsetWidth - 2 * renderObjects.base_element.offsetLeft;
+          renderObjects.height = renderObjects.base_element.offsetParent.offsetHeight - 1.5 * renderObjects.base_element.offsetTop;
+          renderObjects.vis[0][0].width = renderObjects.width;
+          renderObjects.vis[0][0].height = renderObjects.height;
+          renderObjects.vis.width = renderObjects.width;
+          renderObjects.vis.height = renderObjects.height;
+          renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
+            .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
+          renderObjects.path = d3.geo.path().projection(renderObjects.projection);
         },
 
-        "renderMap": function() {
-          context.clearRect(0, 0, width, height);
-          context.save();
-
-          console.log("Rendering map.");
+        "renderMap": function(renderObjects, world) {
+          renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
 
           var globe = {type: "Sphere"};
 
-          context.strokeStyle = '#777';
-          context.fillStyle = '#FFF';
-          context.beginPath();
-          path.context(context)(globe);
-          context.fill();
-          context.stroke();
+          renderObjects.context.strokeStyle = '#777';
+          renderObjects.context.fillStyle = '#FFF';
+          renderObjects.context.beginPath();
+          renderObjects.path.context(renderObjects.context)(globe);
+          renderObjects.context.fill();
+          renderObjects.context.stroke();
 
-          var cells = topojson.feature(world.topography, world.topography.objects.land).features;
+          var times = {};
 
-          cells.forEach(function(d, i) {
-            var color = getColorByAltitude(d, 0.7);
-            context.strokeStyle = color;
-            context.fillStyle = color;
-            context.beginPath();
-            path.context(context)(d);
-            context.fill();
-            context.stroke();
+          function time(name, f) {
+            if(!times.hasOwnProperty(name)) {
+              times[name] = 0;
+            }
+            var start = Date.now();
+            f();
+            times[name] += (Date.now() - start);
+          }
+
+          //var renderTime = Date.now();
+          var contextPath = renderObjects.path.context(renderObjects.context);
+          Object.keys(world).forEach(function(colour, i) {
+            time("fillStyle", function() { renderObjects.context.fillStyle = colour });
+            world[colour].forEach(function(d, j) {
+              time("beginPath", function() { renderObjects.context.beginPath(); });
+              time("Path.context", function() { contextPath(d); });
+              time("fill", function() {  renderObjects.context.fill(); });
+            });
           });
-
-          context.restore();
-          //console.log("Finished rendering map.");
+          //console.log("Rendered cells in " + (Date.now() - renderTime) + "ms.");
+          //console.log(times);
         },
 
-        "renderText": function() {
-          context.fillStyle = "#777";
-          context.font = "18px Helvetica Neue,Helvetica,Arial,sans-serif";
-          context.textAlign = "center";
-          context.textBaseline = "hanging";
-          context.fillText("Generating world...", Math.round(width/2), Math.round(height/2));
+        "renderText": function(renderObjects) {
+          renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
+          renderObjects.context.fillStyle = "#777";
+          renderObjects.context.font = "18px Helvetica Neue,Helvetica,Arial,sans-serif";
+          renderObjects.context.textAlign = "center";
+          renderObjects.context.textBaseline = "hanging";
+          renderObjects.context.fillText("Generating world...",
+          Math.round(renderObjects.width/2), Math.round(renderObjects.height/2));
         }
+
       },
       "svg": {
-        "setup": function() {
+        "setup": function(base_element) {
+          var width = 1,
+              height = 1,
+              scale = 0.9 * 360,
+              projection = d3.geo.orthographic()
+                .scale(scale)
+                .clipAngle(90)
+                .translate([(width)/2, (height-90)/2]);
+
           var vis = d3.select(base_element)
             .append("svg")
             .attr("width", "100%")
@@ -363,49 +388,55 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
           return {
             "vis": vis,
-            "context": null
+            "base_element": base_element,
+            "width": width,
+            "height": height,
+            "scale": scale,
+            "projection": projection
           };
         },
 
-        "resize": function() {
-          width = base_element.offsetWidth;
-          height = base_element.offsetParent.offsetHeight;
-          projection = projection.scale(scale)
-            .translate([width/2, (height-90)/2]);
+        "resize": function(renderObjects) {
+          renderObjects.width = base_element.offsetWidth;
+          renderObjects.height = base_element.offsetParent.offsetHeight;
+          renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
+            .translate([renderObjects.width/2, (renderObjects.height-90)/2]);
 
-          path = d3.geo.path().projection(projection);
+          renderObjects.path = d3.geo.path().projection(renderObjects.projection);
         },
 
-        "renderMap": function() {
-          vis.append("svg:g")
+        "renderMap": function(renderObjects, world) {
+          var renderTime = Date.now();
+
+          renderObjects.vis.append("svg:g")
             .append("path")
             .datum({type: "Sphere"})
             .attr("id", "sphere")
-            .attr("d", path);
+            .attr("d", renderObjects.path);
 
-          vis.append("use")
+          renderObjects.vis.append("use")
             .attr("class", "stroke")
             .attr("xlink:href", "#sphere");
 
-          vis.append("use")
+          renderObjects.vis.append("use")
             .attr("class", "fill")
             .attr("xlink:href", "#sphere")
 
-          vis.selectAll(".subunit")
-            .data(topojson.feature(world.topography, world.topography.objects.land).features)
-            .enter().append("path")
-            .attr("class", "cell")
-            .attr("fill", function(d) {
-              return getColorByAltitude(d);
-            })
-            .attr("fill-opacity", "0.7")
-            .attr("d", path)
-            .style("stroke-width", "1")
-            .style("stroke", rgb)
+          Object.keys(world).forEach(function(colour, i) {
+            renderObjects.vis.selectAll(".subunit")
+              .data(world[colour])
+              .enter().append("path")
+              .attr("class", "cell")
+              .attr("fill", colour)
+              .attr("fill-opacity", "1")
+              .attr("d", renderObjects.path);
+            });
+
+          //console.log("Rendered map in " + (Date.now() - renderTime) + "ms.");
         },
 
-        "renderText": function() {
-          svg.append("text")
+        "renderText": function(renderObjects) {
+          renderObjects.vis.append("text")
             .text("Generating world...")
             .attr("x", "50%")
             .attr("y", "50%")
@@ -423,42 +454,67 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
     var renderText = functions.renderText;
     var renderMap = functions.renderMap;
     var resize = functions.resize;
+    var renderObjects = functions.setup(base_element);
 
-    var setupResults = functions.setup();
-    vis = setupResults.vis;
-    context = setupResults.context;
+    renderObjects.vis.call(d3.behavior.zoom()
+      .scale(renderObjects.projection.scale())
+      .on("zoom", zoomed));
 
-    vis.call(zoom);
-
-    vis.on("mousedown.zoom", dstart)
+    renderObjects.vis.on("mousedown.zoom", dstart)
       .on("mousemove.zoom", dmove)
       .on("mouseup.zoom", function() { m0 = false; })
       .on("touchstart.zoom", dstart)
       .on("touchmove.zoom", dmove)
       .on("touchend.zoom", function() { m0 = false; });
 
-    var render = function() {
-      if(typeof world !== 'undefined' && typeof status !== 'undefined') {
-        if(status == "complete") {
-          if(typeof poll !== 'undefined') $interval.cancel(poll);
-          renderMap();
-        }
-        else {
-          renderText();
-        }
+    var render = function(renderObjects, world, status) {
+      if(status == "complete") {
+        renderMap(renderObjects, world);
+      }
+      else {
+        renderText(renderObjects);
       }
     }
 
     this.render = function(newWorld, newStatus) {
-      world = newWorld;
-      status = newStatus;
-      resize();
-      render();
+      if(typeof newStatus !== 'undefined') status = newStatus;
+
+      if(typeof newWorld !== 'undefined' && typeof status !== 'undefined' && status == "complete") {
+        if(typeof poll !== 'undefined') $interval.cancel(poll);
+        world = {};
+
+        console.log("Preparing world using detail level: " + buckets + ".");
+        var prepareStart = Date.now();
+
+        newWorld.topography.objects.land.geometries.forEach(function(d, i) {
+          var colour = getColourByAltitude(d.properties.altitude, d.properties.latitude, d.properties.terrain_type, 0.8, buckets);
+          d.properties.colour = colour;
+          world[colour] = [];
+        });
+
+        var features = Object.keys(world).reduce(function(acc, colour) {
+          var res = topojson.merge(newWorld.topography, newWorld.topography.objects.land.geometries.filter(function(d) {
+            return d.properties.colour == colour;
+          }));
+          res.colour = colour;
+          acc.push(res)
+          return acc;
+        }, []);
+
+        features.forEach(function(d, i) {
+          world[d.colour].push(d);
+        });
+
+        console.log("Ready to render in " + Object.keys(world).length + " colours.");
+        console.log("Prepared world in " + (Date.now() - prepareStart) + "ms.");
+      }
+      resize(renderObjects);
+      render(renderObjects, world, status);
     }
 
     angular.element($window).bind('resize', function(){
-      resize();
-      render();
+      resize(renderObjects);
+      render(renderObjects, world, status);
     });
   }
 

@@ -5,7 +5,8 @@ var tegmarkControllers = angular.module('tegmarkControllers', []);
 tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location', 'World', function($scope, $routeParams, $location, World) {
   if(typeof $routeParams.worldId !== 'undefined') {
     $scope.renderer = $location.search()['renderer'] || "canvas";
-    console.log("Renderer: " + $scope.renderer);
+    $scope.detail = $location.search()['detail'] || 20;
+    console.log("Rendering in " + $scope.renderer + " mode.");
     World.get($routeParams.worldId)
       .then(function(world) {
          $scope.data = world;
@@ -18,6 +19,12 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location',
       if (typeof newVal !== 'undefined' && newVal != oldVal && newVal == 'complete') {
         $scope.data = World.data.world;
         $scope.status = World.status;
+      }
+    });
+
+    $scope.$watch(function () { return $location.search()['detail']; }, function (newVal, oldVal) {
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        $scope.detail = $location.search()['detail'];
       }
     });
 
