@@ -16,8 +16,8 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location',
   }
 
   $scope.$watch(function () { return World.status; }, function (newVal, oldVal) {
-      if (typeof newVal !== 'undefined' && newVal != oldVal && newVal == 'complete') {
-        $scope.data = World.data.world;
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        if(newVal == 'complete') $scope.data = World.data.world;
         $scope.status = World.status;
       }
     });

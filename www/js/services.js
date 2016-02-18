@@ -358,12 +358,12 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
         "renderText": function(renderObjects) {
           renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
-          renderObjects.context.fillStyle = "#777";
+          renderObjects.context.fillStyle = "#FFF";
           renderObjects.context.font = "18px Helvetica Neue,Helvetica,Arial,sans-serif";
           renderObjects.context.textAlign = "center";
           renderObjects.context.textBaseline = "hanging";
           renderObjects.context.fillText("Generating world...",
-          Math.round(renderObjects.width/2), Math.round(renderObjects.height/2));
+            Math.round(renderObjects.width/2), Math.round(renderObjects.height/2));
         }
 
       },
