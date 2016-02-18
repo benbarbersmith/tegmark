@@ -51,23 +51,21 @@ tegmarkServices.factory('World', ['$http', 'serverUrl', function($http, serverUr
   var active = false;
 
   world.get = function(world_id) {
-    if(!active) {
-      active = true;
-      return $http.get(serverUrl + '/world/' + world_id)
-      	.then(function(httpResponse) {
-          if(httpResponse == null) return null;
-          console.log("Loading world data.");
-          active = false;
-          world.id = httpResponse.data.world_id;
-          world.name = httpResponse.data.world.name;
-          world.status = httpResponse.data.world.status;
-          world.data = httpResponse.data;
-          return httpResponse.data.world;
-          })
-      	.catch(function(err) {
-          console.error(err);
-          });
-    }
+
+    return $http.get(serverUrl + '/world/' + world_id)
+    	.then(function(httpResponse) {
+        if(httpResponse == null) return null;
+        console.log("Polling for world data.");
+        active = false;
+        world.id = httpResponse.data.world_id;
+        world.name = httpResponse.data.world.name;
+        world.status = httpResponse.data.world.status;
+        world.data = httpResponse.data;
+        return httpResponse.data.world;
+        })
+    	.catch(function(err) {
+        console.error(err);
+        });
   }
 
   world.getInfo = function() {
@@ -180,3 +178,348 @@ tegmarkServices.factory('d3', [function() {
       // end d3 source
     return d3;
   }]);
+
+tegmarkServices.factory('Renderer', ['$window', function($window) {
+  function renderer(type, base_element, buckets) {
+    var poll, world, status;
+
+    var zoomed = function() {
+      renderObjects.scale = d3.event.scale;
+      renderObjects.projection = renderObjects.projection.scale(renderObjects.scale);
+      render(renderObjects, world, status);
+    }
+
+    var getEvent = function(event){
+      if(typeof event.sourceEvent !== 'undefined') {
+        return d3.event.sourceEvent;
+      } else if(typeof event.changedTouches !== 'undefined') {
+        return d3.event.changedTouches[0];
+      } else  {
+        return d3.event;
+      }
+    }
+
+    var m0 = false, o0;
+    var dstart = function() {
+      var proj = renderObjects.projection.rotate();
+      var event = getEvent(d3.event);
+      m0 = [event.pageX, event.pageY];
+      o0 = [-proj[0],-proj[1]];
+    }
+    var dmove = function() {
+      if (m0) {
+        var event = getEvent(d3.event);
+        var m1 = [event.pageX, event.pageY];
+        var o1 = [o0[0] + (m0[0] - m1[0]) / 4, o0[1] + (m1[1] - m0[1]) / 4];
+        renderObjects.projection = renderObjects.projection.rotate([-o1[0], -o1[1]]);
+        renderObjects.path = d3.geo.path().projection(renderObjects.projection);
+        render(renderObjects, world, status);
+      }
+    }
+
+    var rgb = function(r, g, b) {
+      return [r,g,b];
+    }
+
+    var colourMix = function(bounds, distance, direction, buckets) {
+      var steps = [];
+      var ranges = [];
+      var num_steps = [0,1,2].map(function(i) {
+        ranges[i] = bounds[1][i] - bounds[0][i]; //-7
+        var step = ranges[i] / buckets; //-15.4
+        steps[i] = (step == Math.abs(step)) ? Math.ceil(step) : Math.floor(step); //-16
+        return Math.floor(ranges[i]*distance*direction / steps[i]);
+      });
+      return rgb = [0,1,2].map(function(i) {
+        var base = (direction > 0) ? bounds[0][i] : bounds[1][i];
+        var colour = Math.round(base + Math.min(...num_steps) * steps[i]);
+        //var colour = Math.round(bounds[0][i] + ranges[i]*distance*direction);
+        return colour;
+      });
+    }
+
+    var colourMap = {
+      'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
+      'sea' : [rgb(107,189,241), rgb(56,150,226)],
+      'lowlands' : [rgb(164,218,101), rgb(145,203,84)],
+      'highlands' : [rgb(145,203,84),rgb(102,150,53)],
+      'alpine' : [rgb(185,157,107), rgb(255,255,255)]
+    }
+
+    var altitudeMapByLatitude = function(latitude) {
+      var highland_max = (-0.8*latitude*latitude + 3800) / 10000;
+      highland_max = highland_max < 0 ? 0.000001 : highland_max;
+      return {
+        'sea' : [-1, 0],
+        'permafrost' : [-1, 0],
+        'lowlands' : [0, 0.05],
+        'highlands' : [0.05, highland_max],
+        'alpine' : [highland_max, 1]
+      };
+    }
+
+    var getColourByAltitude = function(altitude, latitude, terrain, alpha, buckets) {
+      var altitudeBounds = altitudeMapByLatitude(latitude)[terrain];
+      var colourBounds = colourMap[terrain];
+      var distance = (altitude - altitudeBounds[0]) / (altitudeBounds[1] - altitudeBounds[0]);
+      //distance = Math.floor(distance * buckets) / buckets;
+      var direction = altitudeBounds[1] > 0 ? 1 : -1;
+      var rgb = colourMix(colourBounds, distance, direction, buckets);
+      if(typeof a !== 'undefined') {
+        return "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+","+alpha+")";
+      } else {
+        return "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+      }
+    }
+
+    var rendererFunctions = {
+      "canvas": {
+        "setup": function(base_element) {
+          var width = 1,
+              height = 1,
+              scale = 0.9 * (360 / (width*2)),
+              projection = d3.geo.orthographic()
+                .scale(scale)
+                .clipAngle(90)
+                .translate([(width)/2, (height-90)/2]);
+
+          var vis = d3.select(base_element)
+            .append("canvas")
+            .attr("width", "1px")
+            .attr("height", "1px")
+            .attr("style", "border: rgb(231, 231, 231) 1px solid; background-color: #070707;");
+
+          var context = vis.node().getContext("2d");
+
+          return {
+            "vis": vis,
+            "context": context,
+            "base_element": base_element,
+            "width": width,
+            "height": height,
+            "scale": scale,
+            "projection": projection
+          };
+        },
+
+        "resize": function(renderObjects, world) {
+          if(renderObjects.base_element.offsetParent == null) return null;
+          renderObjects.width = renderObjects.base_element.offsetParent.offsetWidth - 2 * renderObjects.base_element.offsetLeft;
+          renderObjects.height = renderObjects.base_element.offsetParent.offsetHeight - 1.5 * renderObjects.base_element.offsetTop;
+          renderObjects.vis[0][0].width = renderObjects.width;
+          renderObjects.vis[0][0].height = renderObjects.height;
+          renderObjects.vis.width = renderObjects.width;
+          renderObjects.vis.height = renderObjects.height;
+          var minDimension = Math.min(renderObjects.width, renderObjects.height);
+          renderObjects.scale = 0.7 * (minDimension / 360 ) * 180;
+          renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
+            .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
+          renderObjects.path = d3.geo.path().projection(renderObjects.projection);
+        },
+
+        "renderMap": function(renderObjects, world) {
+          renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
+
+          var globe = {type: "Sphere"};
+
+          renderObjects.context.strokeStyle = '#777';
+          renderObjects.context.fillStyle = '#FFF';
+          renderObjects.context.beginPath();
+          renderObjects.path.context(renderObjects.context)(globe);
+          renderObjects.context.fill();
+          renderObjects.context.stroke();
+
+          var times = {};
+
+          function time(name, f) {
+            if(!times.hasOwnProperty(name)) {
+              times[name] = 0;
+            }
+            var start = Date.now();
+            f();
+            times[name] += (Date.now() - start);
+          }
+
+          var renderTime = Date.now();
+          var contextPath = renderObjects.path.context(renderObjects.context);
+          Object.keys(world).forEach(function(colour, i) {
+
+            time("strokeStyle", function() { renderObjects.context.strokeStyle = colour });
+            time("fillStyle", function() { renderObjects.context.fillStyle = colour });
+            world[colour].forEach(function(d, j) {
+              time("beginPath", function() { renderObjects.context.beginPath(); });
+              time("Path.context", function() { contextPath(d); });
+              time("fill", function() {  renderObjects.context.fill(); });
+              time("stroke", function() { renderObjects.context.stroke(); });
+            });
+          });
+          //console.log("Rendered cells in " + (Date.now() - renderTime) + "ms.");
+          //console.log(times);
+        },
+
+        "renderText": function(renderObjects) {
+          renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
+          renderObjects.context.fillStyle = "#FFF";
+          renderObjects.context.font = "18px Helvetica Neue,Helvetica,Arial,sans-serif";
+          renderObjects.context.textAlign = "center";
+          renderObjects.context.textBaseline = "hanging";
+          renderObjects.context.fillText("Generating world...",
+            Math.round(renderObjects.width/2), Math.round(renderObjects.height/2));
+        }
+
+      },
+      "svg": {
+        "setup": function(base_element) {
+          var width = 1,
+              height = 1,
+              scale = 0.9 * 360,
+              projection = d3.geo.orthographic()
+                .scale(scale)
+                .clipAngle(90)
+                .translate([(width)/2, (height-90)/2]);
+
+          var vis = d3.select(base_element)
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("style", "border: rgb(231, 231, 231) 1px solid;");
+
+          vis.append("rect")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("fill", "#fff");
+
+          return {
+            "vis": vis,
+            "base_element": base_element,
+            "width": width,
+            "height": height,
+            "scale": scale,
+            "projection": projection
+          };
+        },
+
+        "resize": function(renderObjects) {
+          renderObjects.width = base_element.offsetWidth;
+          renderObjects.height = base_element.offsetParent.offsetHeight;
+          renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
+            .translate([renderObjects.width/2, (renderObjects.height-90)/2]);
+
+          renderObjects.path = d3.geo.path().projection(renderObjects.projection);
+        },
+
+        "renderMap": function(renderObjects, world) {
+          var renderTime = Date.now();
+
+          renderObjects.vis.append("svg:g")
+            .append("path")
+            .datum({type: "Sphere"})
+            .attr("id", "sphere")
+            .attr("d", renderObjects.path);
+
+          renderObjects.vis.append("use")
+            .attr("class", "stroke")
+            .attr("xlink:href", "#sphere");
+
+          renderObjects.vis.append("use")
+            .attr("class", "fill")
+            .attr("xlink:href", "#sphere")
+
+          Object.keys(world).forEach(function(colour, i) {
+            renderObjects.vis.selectAll(".subunit")
+              .data(world[colour])
+              .enter().append("path")
+              .attr("class", "cell")
+              .attr("fill", colour)
+              .attr("fill-opacity", "1")
+              .attr("d", renderObjects.path);
+            });
+
+          //console.log("Rendered map in " + (Date.now() - renderTime) + "ms.");
+        },
+
+        "renderText": function(renderObjects) {
+          renderObjects.vis.append("text")
+            .text("Generating world...")
+            .attr("x", "50%")
+            .attr("y", "50%")
+            .attr("alignment-baseline", "middle")
+            .attr("text-anchor", "middle")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", "18px")
+            .attr("fill", "#777");
+            ;
+        }
+      }
+    };
+
+    var functions = rendererFunctions[type];
+    var renderText = functions.renderText;
+    var renderMap = functions.renderMap;
+    var resize = functions.resize;
+    var renderObjects = functions.setup(base_element);
+
+    renderObjects.vis.call(d3.behavior.zoom()
+      .scale(renderObjects.projection.scale())
+      .on("zoom", zoomed));
+
+    renderObjects.vis.on("mousedown.zoom", dstart)
+      .on("mousemove.zoom", dmove)
+      .on("mouseup.zoom", function() { m0 = false; })
+      .on("touchstart.zoom", dstart)
+      .on("touchmove.zoom", dmove)
+      .on("touchend.zoom", function() { m0 = false; });
+
+    var render = function(renderObjects, world, status) {
+      if(status == "complete") {
+        renderMap(renderObjects, world);
+      }
+      else {
+        renderText(renderObjects);
+      }
+    }
+
+    this.render = function(newWorld, newStatus) {
+      if(typeof newStatus !== 'undefined') status = newStatus;
+
+      if(typeof newWorld !== 'undefined' && typeof status !== 'undefined' && status == "complete") {
+        if(typeof poll !== 'undefined') $interval.cancel(poll);
+        world = {};
+
+        console.log("Preparing world using detail level: " + buckets + ".");
+        var prepareStart = Date.now();
+
+        newWorld.topography.objects.land.geometries.forEach(function(d, i) {
+          var colour = getColourByAltitude(d.properties.altitude, d.properties.latitude, d.properties.terrain_type, 0.8, buckets);
+          d.properties.colour = colour;
+          world[colour] = [];
+        });
+
+        var features = Object.keys(world).reduce(function(acc, colour) {
+          var res = topojson.merge(newWorld.topography, newWorld.topography.objects.land.geometries.filter(function(d) {
+            return d.properties.colour == colour;
+          }));
+          res.colour = colour;
+          acc.push(res)
+          return acc;
+        }, []);
+
+        features.forEach(function(d, i) {
+          world[d.colour].push(d);
+        });
+
+        console.log("Ready to render in " + Object.keys(world).length + " colours.");
+        console.log("Prepared world in " + (Date.now() - prepareStart) + "ms.");
+      }
+      resize(renderObjects);
+      render(renderObjects, world, status);
+    }
+
+    angular.element($window).bind('resize', function(){
+      resize(renderObjects);
+      render(renderObjects, world, status);
+    });
+  }
+
+  return renderer;
+}]);

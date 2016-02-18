@@ -2,19 +2,29 @@
 
 var tegmarkControllers = angular.module('tegmarkControllers', []);
 
-tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', function($scope, $routeParams, World) {
-  if(typeof $routeParams.worldId !== 'undefined')
+tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location', 'World', function($scope, $routeParams, $location, World) {
+  if(typeof $routeParams.worldId !== 'undefined') {
+    $scope.renderer = $location.search()['renderer'] || "canvas";
+    $scope.detail = $location.search()['detail'] || 20;
+    console.log("Rendering in " + $scope.renderer + " mode.");
     World.get($routeParams.worldId)
       .then(function(world) {
          $scope.data = world;
          $scope.status = World.status;
          $scope.id = $routeParams.worldId;
       });
+  }
 
   $scope.$watch(function () { return World.status; }, function (newVal, oldVal) {
-      if (typeof newVal !== 'undefined' && newVal != oldVal && newVal == 'complete') {
-        $scope.data = World.data.world;
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        if(newVal == 'complete') $scope.data = World.data.world;
         $scope.status = World.status;
+      }
+    });
+
+    $scope.$watch(function () { return $location.search()['detail']; }, function (newVal, oldVal) {
+      if (typeof newVal !== 'undefined' && newVal != oldVal) {
+        $scope.detail = $location.search()['detail'];
       }
     });
 
@@ -23,8 +33,13 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', 'World', fun
 tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, World) {
   $scope.id = World.id;
   $scope.name = World.name;
+  $scope.editMode = false;
+  $scope.toggleEditMode = function() {
+    $scope.editMode = !$scope.editMode;
+  }
   $scope.renameWorld = function() {
     World.rename($scope.name);
+    $scope.toggleEditMode();
   }
 
   $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {
