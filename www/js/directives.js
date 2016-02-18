@@ -17,7 +17,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'Renderer', func
 
       scope.$watch("status", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal == "generating") {
-          poll = $interval(World.poll, 500);
+          poll = $interval(World.poll, 1000);
           renderer.render(scope.world, scope.status)
         }
         else if (newVal == "complete") {
