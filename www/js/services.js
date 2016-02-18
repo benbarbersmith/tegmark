@@ -240,9 +240,9 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
     var colourMap = {
       'permafrost' : [rgb(250,250,250), rgb(255,255,255)],
-      'sea' : [rgb(157,228,255), rgb(56,150,226)],
-      'lowlands' : [rgb(173,230,136), rgb(142,223,108)],
-      'highlands' : [rgb(142,223,108), rgb(135,191,102)],
+      'sea' : [rgb(107,189,241), rgb(56,150,226)],
+      'lowlands' : [rgb(164,218,101), rgb(145,203,84)],
+      'highlands' : [rgb(145,203,84),rgb(102,150,53)],
       'alpine' : [rgb(185,157,107), rgb(255,255,255)]
     }
 
@@ -277,7 +277,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
         "setup": function(base_element) {
           var width = 1,
               height = 1,
-              scale = 0.9 * 360,
+              scale = 0.9 * (360 / (width*2)),
               projection = d3.geo.orthographic()
                 .scale(scale)
                 .clipAngle(90)
@@ -287,9 +287,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
             .append("canvas")
             .attr("width", "1px")
             .attr("height", "1px")
-            .attr("style", "border: rgb(231, 231, 231) 1px solid;");
-
-          //vis[0][0].style = "border: rgb(231, 231, 231) 1px solid;";
+            .attr("style", "border: rgb(231, 231, 231) 1px solid; background-color: #070707;");
 
           var context = vis.node().getContext("2d");
 
@@ -304,7 +302,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
           };
         },
 
-        "resize": function(renderObjects) {
+        "resize": function(renderObjects, world) {
           if(renderObjects.base_element.offsetParent == null) return null;
           renderObjects.width = renderObjects.base_element.offsetParent.offsetWidth - 2 * renderObjects.base_element.offsetLeft;
           renderObjects.height = renderObjects.base_element.offsetParent.offsetHeight - 1.5 * renderObjects.base_element.offsetTop;
@@ -312,6 +310,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
           renderObjects.vis[0][0].height = renderObjects.height;
           renderObjects.vis.width = renderObjects.width;
           renderObjects.vis.height = renderObjects.height;
+          renderObjects.scale = 0.7 * (renderObjects.width / 360 ) * 180;
           renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
             .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
           renderObjects.path = d3.geo.path().projection(renderObjects.projection);
@@ -340,14 +339,17 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
             times[name] += (Date.now() - start);
           }
 
-          //var renderTime = Date.now();
+          var renderTime = Date.now();
           var contextPath = renderObjects.path.context(renderObjects.context);
           Object.keys(world).forEach(function(colour, i) {
+
+            time("strokeStyle", function() { renderObjects.context.strokeStyle = colour });
             time("fillStyle", function() { renderObjects.context.fillStyle = colour });
             world[colour].forEach(function(d, j) {
               time("beginPath", function() { renderObjects.context.beginPath(); });
               time("Path.context", function() { contextPath(d); });
               time("fill", function() {  renderObjects.context.fill(); });
+              time("stroke", function() { renderObjects.context.stroke(); });
             });
           });
           //console.log("Rendered cells in " + (Date.now() - renderTime) + "ms.");

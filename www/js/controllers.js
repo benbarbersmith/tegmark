@@ -33,8 +33,13 @@ tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location',
 tegmarkControllers.controller('IdCtrl', ['$scope', 'World', function($scope, World) {
   $scope.id = World.id;
   $scope.name = World.name;
+  $scope.editMode = false;
+  $scope.toggleEditMode = function() {
+    $scope.editMode = !$scope.editMode;
+  }
   $scope.renameWorld = function() {
     World.rename($scope.name);
+    $scope.toggleEditMode();
   }
 
   $scope.$watch(function () { return World.id; }, function (newVal, oldVal) {

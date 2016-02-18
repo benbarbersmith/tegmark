@@ -41,14 +41,14 @@
           <button class="btn btn-primary navbar-btn navbar-right" ng-controller="WorldListCtrl" ng-click="createAndVisitWorld()">
             Visit new world
           </button>
-          <ul class="nav navbar-nav navbar-right">
-            <li class="{{active('world/')}}" ng-controller="IdCtrl">
+          <ul class="nav navbar-nav navbar-right" ng-cloak>
+            <li ng-controller="IdCtrl">
               <a ng-hide="active('world/') == 'active' || !id" ng-href="#/world/{{id}}">Return to {{name}}</a>
-              <form ng-show="active('world/') == 'active'" class="navbar-form navbar-left" role="rename">
+      				<a ng-show="active('world/') == 'active' && !editMode" ng-click="toggleEditMode()">{{name}} <span aria-hidden="true" class="glyphicon glyphicon-pencil" style="padding-left:5px; padding-right:10px;"></span></a>
+              <form ng-show="active('world/') == 'active' && editMode" class="navbar-form navbar-left" role="rename">
                 <div class="form-group">
-                  <input type="text" class="form-control" id="worldName" ng-model="name" />
+                  <input ng-show="editMode" type="text" class="form-control" ng-model="name" placeholder="Click to rename..." ng-blur="renameWorld()">
                 </div>
-                <button type="submit" class="btn btn-default" ng-click="renameWorld()">Rename</button>
               </form>
             </li>
           </ul>
