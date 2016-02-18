@@ -44,3 +44,5 @@ Built with Flask. Instructions:
 ## Example
 
 ![Progress after first weekend](http://i.imgur.com/ggQsPx5.png)
+
+![Progress after a full week](http://imgur.com/KuSoZip.png)

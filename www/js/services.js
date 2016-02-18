@@ -183,12 +183,6 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
   function renderer(type, base_element, buckets) {
     var poll, world, status;
 
-    var zoomed = function() {
-      renderObjects.scale = d3.event.scale;
-      renderObjects.projection = renderObjects.projection.scale(renderObjects.scale);
-      render(renderObjects, world, status);
-    }
-
     var getEvent = function(event){
       if(typeof event.sourceEvent !== 'undefined') {
         return d3.event.sourceEvent;
@@ -275,13 +269,19 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
     var rendererFunctions = {
       "canvas": {
         "setup": function(base_element) {
-          var width = 1,
-              height = 1,
-              scale = 0.9 * (360 / (width*2)),
+          var width = base_element.offsetParent.offsetWidth - 2 * base_element.offsetLeft,
+              height = base_element.offsetParent.offsetHeight - 1.5 *base_element.offsetTop,
+              scale =  0.7 * (Math.min(width, height) / 360 ) * 180,
+              zoomScale = 1.0,
+              haloScale = 1.035,
               projection = d3.geo.orthographic()
                 .scale(scale)
                 .clipAngle(90)
-                .translate([(width)/2, (height-90)/2]);
+                .translate([width/2, height/2]),
+              haloProjection = d3.geo.orthographic()
+                .scale(scale * haloScale)
+                .clipAngle(90)
+                .translate([width/2, height/2]);
 
           var vis = d3.select(base_element)
             .append("canvas")
@@ -298,8 +298,19 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
             "width": width,
             "height": height,
             "scale": scale,
-            "projection": projection
+            "zoomScale": zoomScale,
+            "haloScale": haloScale,
+            "projection": projection,
+            "haloProjection": haloProjection
           };
+        },
+
+        "zoomed": function() {
+          //console.log(d3.event.scale, renderObjects.scale, d3.event.scale / renderObjects.scale)
+          renderObjects.zoomScale = (d3.event.scale / (renderObjects.scale / renderObjects.zoomScale));
+          renderObjects.scale = d3.event.scale;
+          resize(renderObjects);
+          render(renderObjects, world, status);
         },
 
         "resize": function(renderObjects, world) {
@@ -310,51 +321,48 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
           renderObjects.vis[0][0].height = renderObjects.height;
           renderObjects.vis.width = renderObjects.width;
           renderObjects.vis.height = renderObjects.height;
-          var minDimension = Math.min(renderObjects.width, renderObjects.height);
-          renderObjects.scale = 0.7 * (minDimension / 360 ) * 180;
+          renderObjects.scale = 0.7 * (Math.min(renderObjects.width, renderObjects.height) / 360 ) * 180 * renderObjects.zoomScale; //(newScale / renderObjects.scale) * newScale
           renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
             .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
           renderObjects.path = d3.geo.path().projection(renderObjects.projection);
+          renderObjects.haloGradient = renderObjects.context.createRadialGradient(
+            renderObjects.width/2, renderObjects.height/2,
+            renderObjects.scale * (1 / renderObjects.haloScale),
+            renderObjects.width/2, renderObjects.height/2,
+            renderObjects.scale * renderObjects.haloScale
+          );
+          renderObjects.haloGradient.addColorStop(0, '#FFFFFF');
+          renderObjects.haloGradient.addColorStop(0.7, '#3896e2');
+          renderObjects.haloGradient.addColorStop(1, '#070707');
+          renderObjects.haloProjection = renderObjects.haloProjection.scale(renderObjects.scale * renderObjects.haloScale)
+            .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
+          renderObjects.haloPath = d3.geo.path().projection(renderObjects.haloProjection);
         },
 
         "renderMap": function(renderObjects, world) {
           renderObjects.context.clearRect(0, 0, renderObjects.width, renderObjects.height);
 
           var globe = {type: "Sphere"};
-
-          renderObjects.context.strokeStyle = '#777';
-          renderObjects.context.fillStyle = '#FFF';
+          renderObjects.context.strokeStyle = '#070707';
+          renderObjects.context.fillStyle = renderObjects.haloGradient;
           renderObjects.context.beginPath();
-          renderObjects.path.context(renderObjects.context)(globe);
+          var haloPath = renderObjects.haloPath.context(renderObjects.context)
+          haloPath.context(renderObjects.context)(globe);
           renderObjects.context.fill();
           renderObjects.context.stroke();
 
-          var times = {};
-
-          function time(name, f) {
-            if(!times.hasOwnProperty(name)) {
-              times[name] = 0;
-            }
-            var start = Date.now();
-            f();
-            times[name] += (Date.now() - start);
-          }
-
-          var renderTime = Date.now();
           var contextPath = renderObjects.path.context(renderObjects.context);
           Object.keys(world).forEach(function(colour, i) {
-
-            time("strokeStyle", function() { renderObjects.context.strokeStyle = colour });
-            time("fillStyle", function() { renderObjects.context.fillStyle = colour });
+            renderObjects.context.strokeStyle = colour;
+            renderObjects.context.fillStyle = colour
             world[colour].forEach(function(d, j) {
-              time("beginPath", function() { renderObjects.context.beginPath(); });
-              time("Path.context", function() { contextPath(d); });
-              time("fill", function() {  renderObjects.context.fill(); });
-              time("stroke", function() { renderObjects.context.stroke(); });
+              renderObjects.context.beginPath();
+              contextPath(d);
+              renderObjects.context.fill();
+              renderObjects.context.stroke();;
             });
           });
           //console.log("Rendered cells in " + (Date.now() - renderTime) + "ms.");
-          //console.log(times);
         },
 
         "renderText": function(renderObjects) {
@@ -397,6 +405,11 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
             "scale": scale,
             "projection": projection
           };
+        },
+
+        "zoomed": function() {
+          renderObjects.scale = d3.event.scale;
+          render(renderObjects, world, status);
         },
 
         "resize": function(renderObjects) {
@@ -461,7 +474,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
 
     renderObjects.vis.call(d3.behavior.zoom()
       .scale(renderObjects.projection.scale())
-      .on("zoom", zoomed));
+      .on("zoom", functions.zoomed));
 
     renderObjects.vis.on("mousedown.zoom", dstart)
       .on("mousemove.zoom", dmove)
