@@ -310,7 +310,8 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
           renderObjects.vis[0][0].height = renderObjects.height;
           renderObjects.vis.width = renderObjects.width;
           renderObjects.vis.height = renderObjects.height;
-          renderObjects.scale = 0.7 * (renderObjects.width / 360 ) * 180;
+          var minDimension = Math.min(renderObjects.width, renderObjects.height);
+          renderObjects.scale = 0.7 * (minDimension / 360 ) * 180;
           renderObjects.projection = renderObjects.projection.scale(renderObjects.scale)
             .translate([(renderObjects.width)/2, (renderObjects.height)/2]);
           renderObjects.path = d3.geo.path().projection(renderObjects.projection);
