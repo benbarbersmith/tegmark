@@ -149,13 +149,13 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
         scope.properties = getPropertiesFromWorld(scope.world);
         console.log("Ready to render in " + Object.keys(world).length + " colours.");
         console.log("Prepared world in " + (Date.now() - prepareStart) + "ms.");
-        renderer.render(world, scope.status)
+        renderer.render(scope.status, world)
       }
 
       scope.$watch("status", function (newVal, oldVal) {
         if (typeof newVal !== 'undefined' && newVal == "generating") {
           poll = $interval(World.poll, 1000);
-          renderer.render(world, scope.status)
+          renderer.render(scope.status)
         }
         else if (newVal == "complete") {
           if(typeof poll !== 'undefined') $interval.cancel(poll);

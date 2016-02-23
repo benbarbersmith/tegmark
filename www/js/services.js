@@ -457,7 +457,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       }
     }
 
-    this.render = function(newWorld, newStatus) {
+    this.render = function(newStatus, newWorld) {
       if(typeof newStatus !== 'undefined') status = newStatus;
       if(typeof newWorld !== 'undefined' && typeof status !== 'undefined' && status == "complete")  world = newWorld;
       resize();
