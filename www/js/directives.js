@@ -8,14 +8,13 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
     scope: {
       world: "=",
       status: "=",
-      renderer: "=",
       colourmap: "=",
       detail: "="
     },
     templateUrl: "partials/map.html",
     link: function(scope, elements, attrs) {
       var poll, cells;
-      var renderer = new Renderer(scope.renderer, elements[0], scope.detail, updateHud, resizeHud);
+      var renderer = new Renderer(elements[0], scope.detail, updateHud, resizeHud);
 
       var overlayContainer = angular.element("#overlay");
 
