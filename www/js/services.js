@@ -332,6 +332,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
           .translate([width/2, height/2]);
 
     var context = vis.node().getContext("2d");
+    resize();
 
     function getEvent(event){
       if(typeof event.sourceEvent !== 'undefined') {
@@ -407,7 +408,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       context.strokeStyle = '#070707';
       context.fillStyle = haloGradient;
       context.beginPath();
-      var haloPath = path.context(context);
+      haloPath = haloPath.context(context)
       haloPath.context(context)(globe);
       context.fill();
       context.stroke();
