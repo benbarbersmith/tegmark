@@ -344,7 +344,7 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       }
     }
 
-    var display = function() {
+    function display() {
       var latlon = projection.invert(d3.mouse(this));
       updateHud(latlon);
     };
@@ -356,7 +356,8 @@ tegmarkServices.factory('Renderer', ['$window', function($window) {
       m0 = [event.pageX, event.pageY];
       o0 = [-proj[0],-proj[1]];
     }
-    var dmove = function() {
+
+    function dmove() {
       if (m0) {
         var event = getEvent(d3.event);
         var m1 = [event.pageX, event.pageY];
