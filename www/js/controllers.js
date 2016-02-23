@@ -2,10 +2,11 @@
 
 var tegmarkControllers = angular.module('tegmarkControllers', []);
 
-tegmarkControllers.controller('MapCtrl', ['$scope', '$routeParams', '$location', 'World', function($scope, $routeParams, $location, World) {
+tegmarkControllers.controller('WorldCtrl', ['$scope', '$routeParams', '$location', 'World', function($scope, $routeParams, $location, World) {
   if(typeof $routeParams.worldId !== 'undefined') {
     $scope.renderer = $location.search()['renderer'] || "canvas";
     $scope.detail = $location.search()['detail'] || 20;
+    $scope.colourmap = $location.search()['colourmap'] || "terrain_type";
     console.log("Rendering in " + $scope.renderer + " mode.");
     World.get($routeParams.worldId)
       .then(function(world) {

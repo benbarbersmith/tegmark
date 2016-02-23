@@ -24,8 +24,8 @@ tegmarkApp.config(['$routeProvider', '$locationProvider',
         controller: 'WorldListCtrl'
       }).
       when('/world/:worldId', {
-        templateUrl: 'partials/map.html',
-        controller: 'MapCtrl'
+        templateUrl: 'partials/world.html',
+        controller: 'WorldCtrl'
       }).
       otherwise({
         redirectTo: '/'
