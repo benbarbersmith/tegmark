@@ -43,4 +43,4 @@ Built with Flask. Instructions:
 
 ## Example
 
-![Progress after a first week](http://imgur.com/KuSoZip.png)
+![Progress after a couple of weeks](https://imgur.com/Ar1UO12.png)
