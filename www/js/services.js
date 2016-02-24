@@ -232,7 +232,7 @@ tegmarkServices.factory('ColourMaps', [function() {
         var distance = (d.properties[params.name] - params.min) / (params.max - params.min);
         colour = colourMix(colourBounds, distance, 1, buckets);
       } else {
-        colour = params.default;
+        colour = rgb(30,30,30);
       }
       return "rgba("+colour[0]+","+colour[1]+","+colour[2]+",1)";
     }
