@@ -34,7 +34,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
         {
           element: angular.element('#altitudeOverlay'),
           update: function(coords, cell) {
-            angular.element('#altitudeOverlay').html("Altitude:<br/>" + (cell.properties.altitude * 10000).toFixed(0) +"m");
+            angular.element('#altitudeOverlay').html("Altitude:<br/>" + (cell.properties.terrain_altitude * 10000).toFixed(0) +"m");
           }
         }
       ];
