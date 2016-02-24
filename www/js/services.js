@@ -207,7 +207,7 @@ tegmarkServices.factory('ColourMaps', [function() {
 
   function getColourByTerrain() {
     return function(d, buckets) {
-      var altitude = d.properties.altitude;
+      var altitude = d.properties.terrain_altitude;
       var latitude = d.properties.latitude;
       var terrain = d.properties.terrain_type;
       var alpha = 1;

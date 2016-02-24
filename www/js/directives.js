@@ -77,9 +77,9 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
           return Math.sqrt(Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2));
         }
 
-        var nearest_dist = dist(cells[0].properties.cell_id, coords);
+        var nearest_dist = dist([cells[0].properties.longitude, cells[0].properties.latitude], coords);
         return cells.reduce(function(nearest, cell) {
-          var distance = dist(cell.properties.cell_id, coords);
+          var distance = dist([cell.properties.longitude, cell.properties.latitude], coords);
           if(distance < nearest_dist) {
             nearest_dist = distance;
             return cell;
@@ -94,7 +94,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
       }
 
       function updateHud(coords) {
-        if(!isNaN(coords[0]) && !isNaN(coords[1])) {
+        if(!isNaN(coords[0]) && !isNaN(coords[1]) && typeof cells !== 'undefined') {
           var cell = getCellFromCoords(coords);
           textOverlays.map(function(o) { o.update(coords, cell) });
         }
