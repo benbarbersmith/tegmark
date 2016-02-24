@@ -57,7 +57,7 @@ tegmarkDirectives.directive('map', ['$interval', 'd3', 'World', 'ColourMaps', 'R
         }, {}));
         return properties
           .filter(function(p) {
-            return p !== "cell_id" && p !== "colour";
+            return ["cell_id", "colour", "latitude", "longitude"].indexOf(p) < 0;
           })
           .sort()
           .reduce(function(result, p) {
