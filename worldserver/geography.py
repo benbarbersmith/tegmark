@@ -53,7 +53,7 @@ def cell_properties(cell):
             counter[key] = 1
 
     for node in cell.nodes:
-        for (key, value) in node.get_features.iteritems():
+        for (key, value) in node.get_features().iteritems():
             add_value(key, value)
 
     properties = {}
