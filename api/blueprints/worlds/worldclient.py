@@ -17,10 +17,10 @@ def issue_world_command(command_dict):
             buff = client_socket.recv(4096)
     except:
         pass
-    response_json = data.strip()
     try:
-        response_dict = json.loads(response_json)
+        response_json = data.strip()
+        response = json.loads(response_json)
     except:
-        response_dict = {}  # there's been a catastrophic error that we should smartly handle
+        response = data  # It's not JSON, so assume it's binary and share as-is
     client_socket.close()
-    return response_dict
+    return response

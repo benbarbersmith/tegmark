@@ -55,11 +55,14 @@ class ThreadedCommandHandler(SocketServer.StreamRequestHandler):
         except Exception, e:
             logger.exception(e)
             response = {}
-        dumped_string = json.dumps(response)
-        if len(dumped_string.strip()) > 0:
-            # logger.debug(u"Writing data to socket {data}".format(data=response))
-            logger.debug(u"Sending data back to waiting flask webserver")
-            self.wfile.write(u"{j}\n".format(j=json.dumps(response)))
+        if type(response) is dict:
+            dumped_string = json.dumps(response)
+            if len(dumped_string.strip()) > 0:
+                # logger.debug(u"Writing data to socket {data}".format(data=response))
+                logger.debug(u"Sending data back to waiting flask webserver")
+                self.wfile.write(u"{j}\n".format(j=json.dumps(response)))
+        else:
+            self.wfile.write(response)
         self.close_out()
         return
 
