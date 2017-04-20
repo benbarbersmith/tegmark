@@ -194,6 +194,10 @@ function startRendering(canvas, polygons, points) {
   }
 
   function updateViewport(ex, ey, dz, dx, dy, newWidth, newHeight) {
+    boundingBox = canvas.getBoundingClientRect();
+    if (typeof newWidth === "number") width = newWidth;
+    if (typeof newHeight === "number") height = newHeight;
+
     if (typeof dz === "number") {
       // xpos and ypos should be set such that the current lat,lon is still under ex,ey after the zoom.
       var currentLatLon = getLatLon(ex, ey);
@@ -204,15 +208,13 @@ function startRendering(canvas, polygons, points) {
       zpos *= 1 + dz / 1000;
       if (zpos > 1.0) {
         var newScalingFactor = Math.tan(0.125 * Math.PI) * fov / zpos;
-        xpos = nativeX * newScalingFactor * 2 - currentLatLon[0];
+        xpos = nativeX * newScalingFactor * (width / height) - currentLatLon[0];
         ypos = nativeY * newScalingFactor - currentLatLon[1];
       }
     } else if (typeof dx === "number" && typeof dy === "number") {
       dxBuffer += dx;
       dyBuffer += dy;
     }
-    if (typeof newWidth === "number") width = newWidth;
-    if (typeof newHeight === "number") height = newHeight;
     windowChanged = true;
   }
 
@@ -223,7 +225,7 @@ function startRendering(canvas, polygons, points) {
       1.0);
     var scalingFactor = Math.tan(0.125 * Math.PI) * fov / zpos;
     return [
-      (nativeX * scalingFactor * 2 - xpos + 180) % 360 - 180,
+      (nativeX * scalingFactor * (width / height) - xpos + 180) % 360 - 180,
       (nativeY * scalingFactor - ypos + 90) % 180 - 90
     ];
   }
@@ -312,4 +314,3 @@ function setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaderProgram) {
   var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
   gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
 }
-

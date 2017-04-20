@@ -170,29 +170,34 @@ function getPolygons(cells, nodes, colours) {
   var success = 0, failure = 0;
   var polygons = new Array(cells.length);
   for (var i = 0; i < cells.length; i++) {
-    var polygon = cells[i].map(function(cell) {
-      return nodes[cell].map(function(c, idx) {
-        return idx == 3 ? 0.0 : c;
-      });
-    });
+    var polygon = new Array(cells[i].length);
+    var boundingBox = new Float32Array(4);
+    for (var j = 0; j < cells[i].length; j++) {
+      var point = nodes[cells[i][j]];
+      polygon[j] = point;
+      if (boundingBox[0] > point[0]) boundingBox[0] = point[0];
+      if (boundingBox[1] < point[0]) boundingBox[1] = point[0];
+      if (boundingBox[2] > point[1]) boundingBox[2] = point[1];
+      if (boundingBox[3] < point[1]) boundingBox[3] = point[1];
+    }
     var colour = new Float32Array(3);
-    for (j = 0; j <= 2; j++) {
+    for (var j = 0; j <= 2; j++) {
       colour[j] = colours[cells[i].colour][j] / 255.0;
     }
     if (!isWorldWrapping(polygon)) {
       polygon.colour = colour;
+      polygon.boundingBox = boundingBox;
       polygons[i] = polygon;
     } else {
       var newPolygons = splitConvexPolygon(polygon);
+      newPolygons[0].colour = colour;
+      newPolygons[0].boundingBox = boundingBox;
+      polygons[i] = newPolygons[0];
       if (newPolygons.length > 1) {
-        newPolygons[0].colour = colour;
-        polygons[i] = newPolygons[0];
         newPolygons[1].index = i;
         newPolygons[1].colour = colour;
+        newPolygons[1].boundingBox = boundingBox;
         polygons.push(newPolygons[1]);
-      } else {
-        newPolygons[0].colour = colour;
-        polygons[i] = newPolygons[0];
       }
     }
   }
@@ -280,19 +285,13 @@ function splitConvexPolygon(polygon) {
       return [polygon1];
     }
   } else {
-    /*
-    console.error(
-      "A cell exists that is (a) concave and (b) doesn't span the worldline: ",
-      polygon
-    );
-    */
     return [polygon];
   }
 }
 
 function updateHud(polygons, cells, getLatLon) {
   return function(e) {
-    var index = 0;
+    var index = -1;
     var canvas = document.getElementById("canvas");
     var point = getLatLon(e.x, e.y);
     var lon = point[0];
@@ -308,6 +307,9 @@ function updateHud(polygons, cells, getLatLon) {
         break;
       }
     }
+
+    if (index == -1) return;
+
     var latlonElement = document.getElementById("coordsOverlay");
     latlonElement.innerHTML = "LatLon: (" +
       lat.toFixed(6) +
@@ -339,6 +341,14 @@ function updateHud(polygons, cells, getLatLon) {
 }
 
 function pointInPolygon(x, y, vertices) {
+  var boundingBox = vertices.boundingBox;
+  if (
+    x < vertices.boundingBox[0] ||
+    x > vertices.boundingBox[1] ||
+    y < vertices.boundingBox[2] ||
+    y > vertices.boundingBox[3]
+  )
+    return false;
   var inside = false;
   for (var i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
     var xi = vertices[i][0], yi = vertices[i][1];
