@@ -1,9 +1,11 @@
 click==6.2
 Flask==0.10.1
 Flask-Cors==2.1.2
+flask-assets==0.12
 future==0.15.2
 itsdangerous==0.24
 Jinja2==2.8
+jsmin==2.2.1
 MarkupSafe==0.23
 noise==1.2.2
 pysqlite==2.8.1
