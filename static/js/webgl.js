@@ -1,131 +1,216 @@
-const repetitions = [
-  [0, 0],
-  [360, 0],
-  [-360, 0],
-  [0, -180],
-  [360, -180],
-  [-360, -180],
-  [0, 180],
-  [360, 180],
-  [-360, 180]
-];
+var webgl = (function() {
+  const fov = 90.0 / Math.tan(0.125 * Math.PI);
+  const repetitions = [
+    [0, 0],
+    [360, 0],
+    [-360, 0],
+    [0, -180],
+    [360, -180],
+    [-360, -180],
+    [0, 180],
+    [360, 180],
+    [-360, 180]
+  ];
 
-function initWebGL(canvas) {
-  var gl = canvas.getContext("webgl") ||
-    canvas.getContext("experimental-webgl");
-  if (!gl)
-    console.error(
-      "Unable to initialize WebGL. Your browser may not support it."
-    );
+  var gl, buffers, shaders;
 
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  return gl;
-}
-
-function initShaders(gl) {
-  var fragmentShader = loadShader(gl, "shader-fs");
-  var vertexShader = loadShader(gl, "shader-vs");
-
-  var shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertexShader);
-  gl.attachShader(shaderProgram, fragmentShader);
-  gl.linkProgram(shaderProgram);
-
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-    console.error(
-      "Unable to initialize the shader program: " +
-        gl.getProgramInfoLog(shaderProgram)
-    );
-  }
-
-  gl.useProgram(shaderProgram);
-
-  var vertexPositionAttribute = gl.getAttribLocation(
-    shaderProgram,
-    "aVertexPosition"
-  );
-  gl.enableVertexAttribArray(vertexPositionAttribute);
-
-  var vertexColourAttribute = gl.getAttribLocation(
-    shaderProgram,
-    "aVertexColour"
-  );
-  gl.enableVertexAttribArray(vertexColourAttribute);
-
-  return {
-    vertexPositionAttribute: vertexPositionAttribute,
-    vertexColourAttribute: vertexColourAttribute,
-    shaderProgram: shaderProgram
-  };
-}
-
-function loadShader(gl, id) {
-  var shaderElement = document.getElementById(id);
-  var src = shaderElement.text;
-  var type;
-
-  if (shaderElement.type == "x-shader/x-fragment") {
-    type = gl.FRAGMENT_SHADER;
-  } else if (shaderElement.type == "x-shader/x-vertex") {
-    type = gl.VERTEX_SHADER;
-  } else {
-    console.error("Unknown shader type.");
-    return null;
-  }
-  if (!src) {
-    console.error("Shader source not present:", shaderElement);
-    return null;
-  }
-  var shader = gl.createShader(type);
-  gl.shaderSource(shader, src);
-  gl.compileShader(shader);
-
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error(
-      "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader)
-    );
-    gl.deleteShader(shader);
-    return null;
-  }
-  return shader;
-}
-
-function initBuffers(gl, polygons, points) {
-  var buffers = getVertices(polygons, points);
-  var cellVerticesBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, buffers.vertices, gl.STATIC_DRAW);
-  var cellVerticesColourBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesColourBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, buffers.colours, gl.STATIC_DRAW);
-  return {
-    cellVerticesBuffer: cellVerticesBuffer,
-    cellVerticesColourBuffer: cellVerticesColourBuffer
-  };
-}
-
-function startRendering(canvas, polygons, points) {
   var windowChanged = true;
   var dxBuffer = 0.0, dyBuffer = 0.0;
   var xpos = 0.0, ypos = 0.0, zpos = 1.0;
-  var fov = 90.0 / Math.tan(0.125 * Math.PI);
-  var width = canvas.width;
-  var height = canvas.height;
-  var boundingBox = canvas.getBoundingClientRect();
+  var width = 0.0, height = 0.0;
+  var boundingBox;
+  var numVertices = 0;
 
-  var points = countPoints(polygons);
-  var gl = initWebGL(canvas);
-  var shaders = initShaders(gl);
-  var buffers = initBuffers(gl, polygons, points);
+  var mvMatrix = mvTranslate([xpos, ypos, -fov / zpos], Matrix.I(4));
+  var perspectiveMatrix = makePerspective(45, width / height, 0.001, 1000.0);
 
-  var perspectiveMatrix, mvMatrix;
+  var initialized = false;
+
+  function initWebGL(canvas) {
+    var gl = canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl");
+    if (!gl)
+      console.error(
+        "Unable to initialize WebGL. Your browser may not support it."
+      );
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    perspectiveMatrix = makePerspective(45, width / height, 0.001, 1000.0);
+
+    return gl;
+  }
+
+  function initShaders(gl) {
+    var fragmentShader = loadShader(gl, "shader-fs");
+    var vertexShader = loadShader(gl, "shader-vs");
+
+    var shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+      console.error(
+        "Unable to initialize the shader program: " +
+          gl.getProgramInfoLog(shaderProgram)
+      );
+    }
+
+    gl.useProgram(shaderProgram);
+
+    var vertexPositionAttribute = gl.getAttribLocation(
+      shaderProgram,
+      "aVertexPosition"
+    );
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+
+    var vertexColourAttribute = gl.getAttribLocation(
+      shaderProgram,
+      "aVertexColour"
+    );
+    gl.enableVertexAttribArray(vertexColourAttribute);
+
+    return {
+      vertexPositionAttribute: vertexPositionAttribute,
+      vertexColourAttribute: vertexColourAttribute,
+      shaderProgram: shaderProgram
+    };
+  }
+
+  function loadShader(gl, id) {
+    var shaderElement = document.getElementById(id);
+    var src = shaderElement.text;
+    var type;
+
+    if (shaderElement.type == "x-shader/x-fragment") {
+      type = gl.FRAGMENT_SHADER;
+    } else if (shaderElement.type == "x-shader/x-vertex") {
+      type = gl.VERTEX_SHADER;
+    } else {
+      console.error("Unknown shader type.");
+      return null;
+    }
+    if (!src) {
+      console.error("Shader source not present:", shaderElement);
+      return null;
+    }
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(
+        "An error occurred compiling the shaders: " +
+          gl.getShaderInfoLog(shader)
+      );
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  function initBuffers(gl, polygons, vertices) {
+    var buffers = getVertices(polygons, vertices);
+    var cellVerticesBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, buffers.vertices, gl.STATIC_DRAW);
+    var cellVerticesColourBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesColourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, buffers.colours, gl.STATIC_DRAW);
+    return {
+      cellVerticesBuffer: cellVerticesBuffer,
+      cellVerticesColourBuffer: cellVerticesColourBuffer
+    };
+  }
+
+  function countVertices(polygons) {
+    var n = 0;
+    var vs = 0;
+    for (var i = 0; i < polygons.length; i++) {
+      var ps = polygons[i].length;
+      n += ps;
+      // For triangle strip, need to add one extra point for every two points in a polygon, plus two more points for the denegerate triangle.
+      vs += ps + Math.floor(ps / 2) + 3;
+    }
+    console.log("Total points in all polygons: " + n);
+    console.log("Total required vertices: " + vs);
+    return vs;
+  }
+
+  function getVertices(polygons, numVertices) {
+    var x = 0, y = 0;
+    var vertices = new Float32Array(numVertices * 3);
+    var colours = new Float32Array(numVertices * 4);
+
+    function addVertex(point, colour) {
+      vertices[x] = point[0];
+      vertices[x + 1] = point[1];
+      vertices[x + 2] = 0.0;
+      x += 3;
+
+      colours[y] = colour[0];
+      colours[y + 1] = colour[1];
+      colours[y + 2] = colour[2];
+      colours[y + 3] = 1.0; // Full opacity;
+      y += 4;
+    }
+
+    for (i = 0; i < polygons.length; i++) {
+      var colour = polygons[i].colour;
+      addVertex(polygons[i][0], colour);
+      addVertex(polygons[i][0], colour);
+      for (j = 1; j < polygons[i].length; j += 2) {
+        addVertex(polygons[i][j], colour);
+
+        if (j + 1 > polygons[i].length - 1) {
+          break;
+        } else {
+          addVertex(polygons[i][j + 1], colour);
+        }
+
+        if (j + 2 > polygons[i].length - 1) {
+          break;
+        } else {
+          // Add first point in polygon to as part of constructing the triangle strip.
+          addVertex(polygons[i][0], colour);
+        }
+      }
+      // Add the same point twice at the end of the polygon to produce degenerate triangles.
+      addVertex(polygons[i][0], colour);
+      addVertex(polygons[i][0], colour);
+    }
+
+    return {
+      vertices: vertices,
+      colours: colours
+    };
+  }
+
+  function mvTranslate(v, mvMatrix) {
+    return mvMatrix.x(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
+  }
+  function setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaderProgram) {
+    var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    gl.uniformMatrix4fv(
+      pUniform,
+      false,
+      new Float32Array(perspectiveMatrix.flatten())
+    );
+
+    var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+  }
 
   function drawScene() {
+    if (!initialized) {
+      console.error("Intialize webgl before using this function.");
+      return;
+    }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
 
@@ -157,11 +242,15 @@ function startRendering(canvas, polygons, points) {
         Matrix.I(4)
       );
       setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaders.shaderProgram);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, points);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, numVertices);
     }
   }
 
   function checkScene() {
+    if (!initialized) {
+      console.error("Intialize webgl before using this function.");
+      return;
+    }
     if (dxBuffer !== 0 || dxBuffer !== 0 || windowChanged) {
       windowChanged = false;
       xpos += dxBuffer * 0.2 / zpos;
@@ -219,6 +308,10 @@ function startRendering(canvas, polygons, points) {
   }
 
   function getLatLon(ex, ey) {
+    if (!initialized) {
+      console.error("Intialize webgl before using this function.");
+      return;
+    }
     var nativeX = (ex - Math.floor(boundingBox.left)) / canvas.width * 2.0 -
       1.0;
     var nativeY = -((ey - Math.floor(boundingBox.top)) / canvas.height * 2.0 -
@@ -230,87 +323,28 @@ function startRendering(canvas, polygons, points) {
     ];
   }
 
-  window.requestAnimationFrame(checkScene);
-  return {
-    updateViewport: updateViewport,
-    getLatLon: getLatLon
-  };
-}
+  function initialize(canvasElement, polygons) {
+    canvas = canvasElement;
+    width = canvas.width;
+    height = canvas.height;
+    boundingBox = canvas.getBoundingClientRect();
 
-function countPoints(polygons) {
-  var n = 0;
-  var vs = 0;
-  for (var i = 0; i < polygons.length; i++) {
-    var ps = polygons[i].length;
-    n += ps;
-    // For triangle strip, need to add one extra point for every two points in a polygon, plus two more points for the denegerate triangle.
-    vs += ps + Math.floor(ps / 2) + 3;
-  }
-  console.log("Total points in all polygons: " + n);
-  console.log("Total required vertices: " + vs);
-  return vs;
-}
+    numVertices = countVertices(polygons);
 
-function getVertices(polygons, points) {
-  var x = 0, y = 0;
-  var vertices = new Float32Array(points * 3);
-  var colours = new Float32Array(points * 4);
+    gl = initWebGL(canvas);
+    shaders = initShaders(gl);
+    buffers = initBuffers(gl, polygons, numVertices);
 
-  function addPoint(point, colour) {
-    vertices[x] = point[0];
-    vertices[x + 1] = point[1];
-    vertices[x + 2] = 0.0;
-    x += 3;
+    initialized = true;
 
-    colours[y] = colour[0];
-    colours[y + 1] = colour[1];
-    colours[y + 2] = colour[2];
-    colours[y + 3] = 1.0; // Full opacity;
-    y += 4;
-  }
-
-  for (i = 0; i < polygons.length; i++) {
-    var colour = polygons[i].colour;
-    addPoint(polygons[i][0], colour);
-    addPoint(polygons[i][0], colour);
-    for (j = 1; j < polygons[i].length; j += 2) {
-      addPoint(polygons[i][j], colour);
-
-      if (j + 1 > polygons[i].length - 1) {
-        break;
-      } else {
-        addPoint(polygons[i][j + 1], colour);
-      }
-
-      if (j + 2 > polygons[i].length - 1) {
-        break;
-      } else {
-        // Add first point in polygon to as part of constructing the triangle strip.
-        addPoint(polygons[i][0], colour);
-      }
-    }
-    // Add the same point twice at the end of the polygon to produce degenerate triangles.
-    addPoint(polygons[i][0], colour);
-    addPoint(polygons[i][0], colour);
+    window.requestAnimationFrame(checkScene);
   }
 
   return {
-    vertices: vertices,
-    colours: colours
+    initialize: initialize,
+    drawScene: drawScene,
+    checkScene: checkScene,
+    getLatLon: getLatLon,
+    updateViewport: updateViewport
   };
-}
-
-function mvTranslate(v, mvMatrix) {
-  return mvMatrix.x(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
-}
-function setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaderProgram) {
-  var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-  gl.uniformMatrix4fv(
-    pUniform,
-    false,
-    new Float32Array(perspectiveMatrix.flatten())
-  );
-
-  var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-  gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-}
+})();

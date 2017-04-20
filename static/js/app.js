@@ -1,9 +1,10 @@
-var worldName = "large";
 var start = new Date();
 var isDown = false;
+var world = {};
 
 window.onload = function() {
-  getWorld();
+  if (typeof worldId === "undefined") worldId = "00000075";
+  getWorld(worldId);
 };
 
 function getResource(
@@ -32,11 +33,9 @@ function setStatusOverlay(text) {
 }
 
 function getWorld(worldId) {
-  if (typeof worldId === "undefined") worldId = "00000076";
   setStatusOverlay("Requesting world " + worldId);
-  var world = {};
-  var interval;
 
+  var interval;
   function pollForWorld() {
     console.log("Polling for world");
     getResource(
@@ -49,12 +48,12 @@ function getWorld(worldId) {
           setStatusOverlay("Error: " + JSON.stringify(json, null, 2));
           console.error(json);
         } else {
-          world = json.world;
-          world.id = worldId;
-          if (world.status == "complete") {
+          if (json.world.status == "complete") {
+            world = json.world;
+            world.id = worldId;
             clearInterval(interval);
             setStatusOverlay("Rendering world " + worldId);
-            getWorldFeatures(world);
+            getWorldFeatures();
           } else {
             setStatusOverlay(
               "World " + worldId + " is " + world.status + "..."
@@ -68,102 +67,97 @@ function getWorld(worldId) {
   interval = setInterval(pollForWorld, 500);
 }
 
-function getWorldFeatures(world) {
+function getWorldFeatures() {
   getResource(
     "http://127.0.0.1:15000/api/world/" + world.id + "/features",
     "arraybuffer",
     "response",
-    buildWorld(world),
+    buildWorld,
     console.error
   );
   getResource(
     "http://127.0.0.1:15000/api/world/" + world.id + "/feature_properties",
     "json",
     "response",
-    function(json) {
-      if (world.hasOwnProperty("cells")) {
-        for (var i = 0; i < json.feature_properties.cells.length; i++) {
-          world.cells[i].properties = json.feature_properties.cells[i];
-        }
-        console.log("Startup time: " + (new Date() - start) + " ms");
-      } else {
-        world.feature_properties = json.feature_properties;
-      }
-    },
+    mergePropertiesIntoWorld,
     console.error
   );
 }
 
-function getProperties(successCallback) {}
-
-function buildWorld(world) {
-  return function(response) {
-    wheeler.decode(response, world);
-    var canvas = resizeCanvas(function() {})();
-    var polygons = getPolygons(world.cells, world.nodes, world.colours);
-    var canvasFunctions = startRendering(canvas, polygons);
-    console.log("First render: " + (new Date() - start) + " ms");
-    if (world.hasOwnProperty("feature_properties")) {
-      for (var i = 0; i < world.cells.length; i++) {
-        world.cells[i].properties = world.feature_properties.cells[i];
-      }
-      delete world.feature_properties;
+function mergePropertiesIntoWorld(json) {
+  if (
+    world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("properties")
+  ) {
+    return;
+  } else if (world.hasOwnProperty("cells")) {
+    for (var i = 0; i < json.feature_properties.cells.length; i++) {
+      world.cells[i].properties = json.feature_properties.cells[i];
     }
-
-    var updateCanvas = canvasFunctions.updateViewport;
-    var getLatLon = canvasFunctions.getLatLon;
-
-    setStatusOverlay("World " + world.id + " is ready to explore!");
-
-    window.addEventListener("wheel", changeZoom(updateCanvas), false);
-    window.addEventListener("resize", resizeCanvas(updateCanvas), false);
-    window.addEventListener("mousemove", pan(updateCanvas), false);
-    canvas.addEventListener(
-      "mousemove",
-      updateHud(polygons, world.cells, getLatLon),
-      false
-    );
-    window.addEventListener(
-      "mousedown",
-      function() {
-        isDown = true;
-      },
-      false
-    );
-    window.addEventListener(
-      "mouseup",
-      function() {
-        isDown = false;
-      },
-      false
-    );
-  };
+    console.log("Startup time: " + (new Date() - start) + " ms");
+  } else {
+    world.feature_properties = json.feature_properties;
+  }
 }
 
-function resizeCanvas(updateCanvas) {
-  return function() {
-    var width = window.innerWidth;
-    var height = window.innerHeight;
+function buildWorld(response) {
+  if (world.hasOwnProperty("cells")) {
+    console.error("World already built!");
+    return;
+  }
+  wheeler.decode(response, world);
+  var canvas = resizeCanvas();
+  var polygons = getPolygons(world.cells, world.nodes, world.colours);
+  webgl.initialize(canvas, polygons);
+  console.log("First render: " + (new Date() - start) + " ms");
 
-    var canvas = document.getElementById("canvas");
-    canvas.setAttribute("width", width);
-    canvas.setAttribute("height", height);
+  if (world.hasOwnProperty("feature_properties")) {
+    for (var i = 0; i < world.cells.length; i++) {
+      world.cells[i].properties = world.feature_properties.cells[i];
+    }
+    delete world.feature_properties;
+  }
 
-    updateCanvas(null, null, null, null, null, width, height);
-    return canvas;
-  };
+  setStatusOverlay("World " + world.id + " is ready to explore!");
+
+  window.addEventListener("wheel", changeZoom, false);
+  window.addEventListener("resize", resizeCanvas, false);
+  window.addEventListener("mousemove", pan, false);
+  canvas.addEventListener("mousemove", updateHud(polygons, world.cells), false);
+  window.addEventListener(
+    "mousedown",
+    function() {
+      isDown = true;
+    },
+    false
+  );
+  window.addEventListener(
+    "mouseup",
+    function() {
+      isDown = false;
+    },
+    false
+  );
 }
 
-function changeZoom(updateCanvas) {
-  return function(e) {
-    updateCanvas(e.x, e.y, -e.deltaY);
-  };
+function resizeCanvas(e) {
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+
+  var canvas = document.getElementById("canvas");
+  canvas.setAttribute("width", width);
+  canvas.setAttribute("height", height);
+
+  if (typeof e !== "undefined")
+    webgl.updateViewport(null, null, null, null, null, width, height);
+  return canvas;
 }
 
-function pan(updateCanvas) {
-  return function(e) {
-    if (isDown) updateCanvas(null, null, null, e.movementX, -e.movementY);
-  };
+function changeZoom(e) {
+  webgl.updateViewport(e.x, e.y, -e.deltaY);
+}
+
+function pan(e) {
+  if (isDown) webgl.updateViewport(null, null, null, e.movementX, -e.movementY);
 }
 
 function getPolygons(cells, nodes, colours) {
@@ -289,11 +283,11 @@ function splitConvexPolygon(polygon) {
   }
 }
 
-function updateHud(polygons, cells, getLatLon) {
+function updateHud(polygons, cells) {
   return function(e) {
     var index = -1;
     var canvas = document.getElementById("canvas");
-    var point = getLatLon(e.x, e.y);
+    var point = webgl.getLatLon(e.x, e.y);
     var lon = point[0];
     var lat = point[1];
 
