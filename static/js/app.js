@@ -98,19 +98,26 @@ function mergePropertiesIntoWorld(json) {
         var key = propertyKeys[j];
         var propertyMinMax = properties[key];
         if (typeof propertyMinMax === "undefined") {
-          propertyMinMax = {min: 0.0, max: 0.0};
+          propertyMinMax = { name: key, min: 0.0, max: 0.0 };
         }
-        if (propertyMinMax.min > world.cells[i].properties[key]) propertyMinMax.min = world.cells[i].properties[key];
-        if (propertyMinMax.max < world.cells[i].properties[key]) propertyMinMax.max = world.cells[i].properties[key];
+        if (propertyMinMax.min > world.cells[i].properties[key])
+          propertyMinMax.min = world.cells[i].properties[key];
+        if (propertyMinMax.max < world.cells[i].properties[key])
+          propertyMinMax.max = world.cells[i].properties[key];
         properties[key] = propertyMinMax;
       }
     }
     var propertyKeys = Object.keys(properties);
     for (var i = 0; i < propertyKeys.length; i++) {
       var property = properties[propertyKeys[i]];
-      property.colour = colourmaps.getMap("chloropleth", {"buckets": 50, min: property.min, max: property.max});
+      property.colour = colourmaps.getMap("chloropleth", {
+        buckets: 50,
+        min: property.min,
+        max: property.max
+      });
       properties[propertyKeys[i]] = property;
     }
+    updateColourSelector(properties, propertyKeys);
     world.properties = properties;
     console.log("Startup time: " + (new Date() - start) + " ms");
   } else {
@@ -126,7 +133,7 @@ function buildWorld(response) {
   wheeler.decode(response, world);
   var canvas = resizeCanvas();
   var polygons = getPolygons(world.cells, world.nodes, world.colours);
-  webgl.initialize(canvas, polygons);
+  webgl.initialize(canvas, polygons, world.cells);
   console.log("First render: " + (new Date() - start) + " ms");
 
   if (world.hasOwnProperty("feature_properties")) {
@@ -349,6 +356,34 @@ function updateHud(polygons, cells) {
       //propsElement.style.color = c;
     }
   };
+}
+
+function keyToReadableValue(key) {
+  key = key.replace("_", " ");
+  key = key[0].toUpperCase() + key.slice(1);
+  return key;
+}
+
+function updateColourSelector(properties, keys) {
+  var colourmaps = document.getElementById("colourmapSelect");
+  while (colourmaps.children.length > 1) {
+    colourmaps.removeChild(colourmaps.lastChild);
+  }
+  colourmaps.onchange = function(e) {
+    var property;
+    if (e.srcElement.value !== "default") {
+      webgl.recolour(properties[e.srcElement.value]);
+    } else {
+      webgl.recolour();
+    }
+  };
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].slice(keys[i].length - 3) == "_id") continue;
+    var element = document.createElement("option");
+    element.setAttribute("value", keys[i]);
+    element.innerHTML = keyToReadableValue(keys[i]);
+    colourmaps.appendChild(element);
+  }
 }
 
 function pointInPolygon(x, y, vertices) {

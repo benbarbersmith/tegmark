@@ -12,8 +12,7 @@ var webgl = (function() {
     [-360, 180]
   ];
 
-  var gl, buffers, shaders;
-
+  var gl, buffers, shaders, polygons, cells;
   var windowChanged = true;
   var dxBuffer = 0.0, dyBuffer = 0.0;
   var xpos = 0.0, ypos = 0.0, zpos = 1.0;
@@ -114,18 +113,95 @@ var webgl = (function() {
     return shader;
   }
 
-  function initBuffers(gl, polygons, vertices) {
-    var buffers = getVertices(polygons, vertices);
-    var cellVerticesBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, buffers.vertices, gl.STATIC_DRAW);
-    var cellVerticesColourBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cellVerticesColourBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, buffers.colours, gl.STATIC_DRAW);
+  function initBuffers(gl, polygons, numVertices) {
+    var vertices = getVertices(polygons, numVertices);
+    var colours = getColours(polygons, numVertices);
+    var glVerticesBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, glVerticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    var glVerticesColourBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, glVerticesColourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
     return {
-      cellVerticesBuffer: cellVerticesBuffer,
-      cellVerticesColourBuffer: cellVerticesColourBuffer
+      cellVerticesBuffer: glVerticesBuffer,
+      cellVerticesColourBuffer: glVerticesColourBuffer
     };
+  }
+
+  function getColours(polygons, numVertices, property) {
+    var x = 0;
+    var colourFunction;
+    var value;
+    var key;
+    var colours = new Float32Array(numVertices * 4);
+
+    function addVertex(colour) {
+      colours[x] = colour[0];
+      colours[x + 1] = colour[1];
+      colours[x + 2] = colour[2];
+      colours[x + 3] = 1.0; // Full opacity;
+      x += 4;
+    }
+    if (
+      typeof property !== "object" ||
+      !property.hasOwnProperty("name") ||
+      !property.hasOwnProperty("colour")
+    ) {
+      colourFunction = function(i) {
+        return polygons[i].colour;
+      };
+    } else {
+      colourFunction = property.colour;
+      key = property.name;
+    }
+    for (i = 0; i < polygons.length; i++) {
+      if (typeof key !== "string") {
+        value = i;
+      } else {
+        var idx = i;
+        if (i > cells.length && polygons[i].hasOwnProperty("index")) {
+          idx = polygons[i].index;
+        }
+        if (
+          idx < cells.length &&
+          cells[idx].hasOwnProperty("properties") &&
+          cells[idx].properties.hasOwnProperty(key)
+        ) {
+          value = cells[idx].properties[key];
+        } else {
+          value = property.min;
+        }
+      }
+      var colour = colourFunction(value);
+      addVertex(colour);
+      addVertex(colour);
+      addVertex(colour);
+      addVertex(colour);
+
+      for (j = 1; j < polygons[i].length; j += 2) {
+        addVertex(colour);
+        if (j + 1 > polygons[i].length - 1) {
+          break;
+        } else {
+          addVertex(colour);
+        }
+        if (j + 2 > polygons[i].length - 1) {
+          break;
+        } else {
+          // Add first point in polygon to as part of constructing the triangle strip.
+          addVertex(colour);
+        }
+      }
+    }
+    return colours;
+  }
+
+  function recolour(property) {
+    var colours = getColours(polygons, numVertices, property);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.cellVerticesColourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
+    windowChanged = true;
+    drawScene();
   }
 
   function countVertices(polygons) {
@@ -137,58 +213,44 @@ var webgl = (function() {
       // For triangle strip, need to add one extra point for every two points in a polygon, plus two more points for the denegerate triangle.
       vs += ps + Math.floor(ps / 2) + 3;
     }
-    console.log("Total points in all polygons: " + n);
-    console.log("Total required vertices: " + vs);
     return vs;
   }
 
   function getVertices(polygons, numVertices) {
     var x = 0, y = 0;
     var vertices = new Float32Array(numVertices * 3);
-    var colours = new Float32Array(numVertices * 4);
 
-    function addVertex(point, colour) {
+    function addVertex(point) {
       vertices[x] = point[0];
       vertices[x + 1] = point[1];
       vertices[x + 2] = 0.0;
       x += 3;
-
-      colours[y] = colour[0];
-      colours[y + 1] = colour[1];
-      colours[y + 2] = colour[2];
-      colours[y + 3] = 1.0; // Full opacity;
-      y += 4;
     }
 
     for (i = 0; i < polygons.length; i++) {
-      var colour = polygons[i].colour;
-      addVertex(polygons[i][0], colour);
-      addVertex(polygons[i][0], colour);
+      addVertex(polygons[i][0]);
+      addVertex(polygons[i][0]);
       for (j = 1; j < polygons[i].length; j += 2) {
-        addVertex(polygons[i][j], colour);
+        addVertex(polygons[i][j]);
 
         if (j + 1 > polygons[i].length - 1) {
           break;
         } else {
-          addVertex(polygons[i][j + 1], colour);
+          addVertex(polygons[i][j + 1]);
         }
 
         if (j + 2 > polygons[i].length - 1) {
           break;
         } else {
           // Add first point in polygon to as part of constructing the triangle strip.
-          addVertex(polygons[i][0], colour);
+          addVertex(polygons[i][0]);
         }
       }
       // Add the same point twice at the end of the polygon to produce degenerate triangles.
-      addVertex(polygons[i][0], colour);
-      addVertex(polygons[i][0], colour);
+      addVertex(polygons[i][0]);
+      addVertex(polygons[i][0]);
     }
-
-    return {
-      vertices: vertices,
-      colours: colours
-    };
+    return vertices;
   }
 
   function mvTranslate(v, mvMatrix) {
@@ -285,7 +347,8 @@ var webgl = (function() {
   function updateViewport(ex, ey, dz, dx, dy, newWidth, newHeight) {
     if (typeof newWidth === "number") width = newWidth;
     if (typeof newHeight === "number") height = newHeight;
-    if (typeof newWidth === "number" || typeof newHeight === "number") boundingBox = canvas.getBoundingClientRect();
+    if (typeof newWidth === "number" || typeof newHeight === "number")
+      boundingBox = canvas.getBoundingClientRect();
 
     if (typeof dz === "number") {
       // xpos and ypos should be set such that the current lat,lon is still under ex,ey after the zoom.
@@ -323,7 +386,9 @@ var webgl = (function() {
     ];
   }
 
-  function initialize(canvasElement, polygons) {
+  function initialize(canvasElement, ps, cs) {
+    polygons = ps;
+    cells = cs;
     canvas = canvasElement;
     width = canvas.width;
     height = canvas.height;
@@ -345,6 +410,7 @@ var webgl = (function() {
     drawScene: drawScene,
     checkScene: checkScene,
     getLatLon: getLatLon,
-    updateViewport: updateViewport
+    updateViewport: updateViewport,
+    recolour: recolour
   };
 })();

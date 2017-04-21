@@ -3,9 +3,7 @@ var colourmaps = (function() {
     return [r, g, b];
   }
 
-  function colourMix(bounds, distance, direction, buckets) {
-
-  }
+  function colourMix(bounds, distance, direction, buckets) {}
 
   function getColourByMaxima(params) {
     if (
@@ -24,20 +22,37 @@ var colourmaps = (function() {
       var ranges = [];
 
       return function(value) {
-        if (value < params.min) return "rgba(" + bounds[0][0] + "," + bounds[0][1] + "," + bounds[0][2] + ",1)";
-        if (value > params.max) return "rgba(" + bounds[1][0] + "," + bounds[1][1] + "," + bounds[1][2] + ",1)";
-        var distance = (value - params.min) /
-          (params.max - params.min);
+        if (value < params.min)
+          return "rgba(" +
+            bounds[0][0] +
+            "," +
+            bounds[0][1] +
+            "," +
+            bounds[0][2] +
+            ",1)";
+        if (value > params.max)
+          return "rgba(" +
+            bounds[1][0] +
+            "," +
+            bounds[1][1] +
+            "," +
+            bounds[1][2] +
+            ",1)";
+        var distance = (value - params.min) / (params.max - params.min);
         var num_steps = [0, 1, 2].map(function(i) {
           ranges[i] = bounds[1][i] - bounds[0][i];
           var step = ranges[i] / params.buckets;
-          steps[i] = step == Math.abs(step) ? Math.ceil(step) : Math.floor(step);
+          steps[i] = step == Math.abs(step)
+            ? Math.ceil(step)
+            : Math.floor(step);
           return Math.floor(ranges[i] * distance / steps[i]);
         });
         var colour = [0, 1, 2].map(function(i) {
           return Math.round(bounds[0][i] + Math.min(...num_steps) * steps[i]);
         });
-        return "rgba(" + colour[0] + "," + colour[1] + "," + colour[2] + ",1)";
+        return colour.map(function(c) {
+          return c / 255.0;
+        });
       };
     }
   }
