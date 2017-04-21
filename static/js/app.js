@@ -85,6 +85,7 @@ function getWorldFeatures() {
 }
 
 function mergePropertiesIntoWorld(json) {
+  var properties = {};
   if (
     world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("properties")
   ) {
@@ -92,7 +93,25 @@ function mergePropertiesIntoWorld(json) {
   } else if (world.hasOwnProperty("cells")) {
     for (var i = 0; i < json.feature_properties.cells.length; i++) {
       world.cells[i].properties = json.feature_properties.cells[i];
+      var propertyKeys = Object.keys(world.cells[i].properties);
+      for (var j = 0; j < propertyKeys.length; j++) {
+        var key = propertyKeys[j];
+        var propertyMinMax = properties[key];
+        if (typeof propertyMinMax === "undefined") {
+          propertyMinMax = {min: 0.0, max: 0.0};
+        }
+        if (propertyMinMax.min > world.cells[i].properties[key]) propertyMinMax.min = world.cells[i].properties[key];
+        if (propertyMinMax.max < world.cells[i].properties[key]) propertyMinMax.max = world.cells[i].properties[key];
+        properties[key] = propertyMinMax;
+      }
     }
+    var propertyKeys = Object.keys(properties);
+    for (var i = 0; i < propertyKeys.length; i++) {
+      var property = properties[propertyKeys[i]];
+      property.colour = colourmaps.getMap("chloropleth", {"buckets": 50, min: property.min, max: property.max});
+      properties[propertyKeys[i]] = property;
+    }
+    world.properties = properties;
     console.log("Startup time: " + (new Date() - start) + " ms");
   } else {
     world.feature_properties = json.feature_properties;

@@ -4,64 +4,58 @@ var colourmaps = (function() {
   }
 
   function colourMix(bounds, distance, direction, buckets) {
-    var steps = [];
-    var ranges = [];
-    var num_steps = [0, 1, 2].map(function(i) {
-      ranges[i] = bounds[1][i] - bounds[0][i]; //-7
-      var step = ranges[i] / buckets; //-15.4
-      steps[i] = step == Math.abs(step) ? Math.ceil(step) : Math.floor(step); //-16
-      return Math.floor(ranges[i] * distance * direction / steps[i]);
-    });
-    return [0, 1, 2].map(function(i) {
-      var base = direction > 0 ? bounds[0][i] : bounds[1][i];
-      var colour = Math.round(base + Math.min(...num_steps) * steps[i]);
-      //var colour = Math.round(bounds[0][i] + ranges[i]*distance*direction);
-      return colour;
-    });
+
   }
 
   function getColourByMaxima(params) {
-    return function(d, buckets) {
-      if (
-        !params.hasOwnProperty("name") ||
-        !params.hasOwnProperty("max") ||
-        !params.hasOwnProperty("min")
-      ) {
-        console.error(
-          "Colouring by maxima requires a parameter object with a name, min, max."
-        );
-        return "rgb(30,30,30)";
-      }
-      var colourBounds = [rgb(50, 50, 50), rgb(240, 240, 240)];
-      var colour;
-      if (
-        d.properties.hasOwnProperty(params.name) &&
-        typeof d.properties[params.name] !== "undefined"
-      ) {
-        var distance = (d.properties[params.name] - params.min) /
+    if (
+      typeof params !== "object" ||
+      !params.hasOwnProperty("buckets") ||
+      !params.hasOwnProperty("max") ||
+      !params.hasOwnProperty("min")
+    ) {
+      console.error(
+        "Colouring by maxima requires a parameter object with a buckets, min, max value."
+      );
+      return rgb(50, 50, 50);
+    } else {
+      var bounds = [rgb(50, 50, 50), rgb(240, 240, 240)];
+      var steps = [];
+      var ranges = [];
+
+      return function(value) {
+        if (value < params.min) return "rgba(" + bounds[0][0] + "," + bounds[0][1] + "," + bounds[0][2] + ",1)";
+        if (value > params.max) return "rgba(" + bounds[1][0] + "," + bounds[1][1] + "," + bounds[1][2] + ",1)";
+        var distance = (value - params.min) /
           (params.max - params.min);
-        colour = colourMix(colourBounds, distance, 1, buckets);
-      } else {
-        colour = rgb(30, 30, 30);
-      }
-      return "rgba(" + colour[0] + "," + colour[1] + "," + colour[2] + ",1)";
-    };
+        var num_steps = [0, 1, 2].map(function(i) {
+          ranges[i] = bounds[1][i] - bounds[0][i];
+          var step = ranges[i] / params.buckets;
+          steps[i] = step == Math.abs(step) ? Math.ceil(step) : Math.floor(step);
+          return Math.floor(ranges[i] * distance / steps[i]);
+        });
+        var colour = [0, 1, 2].map(function(i) {
+          return Math.round(bounds[0][i] + Math.min(...num_steps) * steps[i]);
+        });
+        return "rgba(" + colour[0] + "," + colour[1] + "," + colour[2] + ",1)";
+      };
+    }
   }
 
   var maps = {
     latitude: {
-      func: getColourByMaxima({ name: "latitude", min: -90, max: 90 }),
+      func: getColourByMaxima({ buckets: 50, min: -90, max: 90 }),
       expectsParams: false
     },
     longitude: {
-      func: getColourByMaxima({ name: "longitude", min: -180, max: 180 }),
+      func: getColourByMaxima({ buckets: 50, min: -180, max: 180 }),
       expectsParams: false
     },
     altitude: {
-      func: getColourByMaxima({ name: "altitude", min: -1, max: 1 }),
+      func: getColourByMaxima({ buckets: 50, min: -10000, max: 10000 }),
       expectsParams: false
     },
-    chloropeth: {
+    chloropleth: {
       func: getColourByMaxima,
       expectsParams: true
     }
