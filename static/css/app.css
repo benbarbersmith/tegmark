@@ -44,13 +44,13 @@ pre, p {
   border: 0px;
   border-radius: 0px;
   z-index: 100;
+  display: none;
 }
 
 #overlay {
   position: relative;
-  width: 100%;
+  width: 100vw;
   margin: 0em;
-  height: 4.5em;
   font-family: monospace;
   fill: none;
   pointer-events: all;
@@ -58,21 +58,24 @@ pre, p {
 }
 
 #overlay span {
+  position: relative;
   display: block;
   float: left;
   line-height: 20px;
-  padding: 0.5em 1em 0 0;
-}
-
-#overlay p#textOverlay {
-  float: left;
-  background-color: rgba(0,0,0,0.8);
   padding: 1em;
 }
 
-#overlay div#colourmapOverlay {
-  height: 4.5em;
-  padding: 1em 1em 0 1em;
+#overlay p#textOverlay {
+  position: relative;
+  float: left;
+  margin: 0;
   background-color: rgba(0,0,0,0.8);
+}
+
+#overlay div#colourmapOverlay {
+  position: relative;
+  margin: 0;
+  padding: 1em;
   float: right;
+  background-color: rgba(0,0,0,0.8);
 }

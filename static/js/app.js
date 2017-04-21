@@ -316,8 +316,6 @@ function updateHud(polygons, cells) {
         cells[i].properties.terrain_altitude.toFixed(2);
     }
     if (cells[i] && cells[i].hasOwnProperty("properties")) {
-      cells[i].properties["lat"] = lat;
-      cells[i].properties["lon"] = lon;
       var propsElement = document.getElementById("properties");
       var c = "rgb(" +
         colours[cells[i].colour][0] +
@@ -326,10 +324,10 @@ function updateHud(polygons, cells) {
         "," +
         colours[cells[i].colour][2] +
         ")";
-      propsElement.innerHTML = JSON.stringify(cells[i].properties, null, 2);
+      //propsElement.innerHTML = JSON.stringify(cells[i].properties, null, 2);
       latlonElement.style.color = c;
       altElement.style.color = c;
-      propsElement.style.color = c;
+      //propsElement.style.color = c;
     }
   };
 }

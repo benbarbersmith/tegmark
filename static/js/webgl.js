@@ -283,9 +283,9 @@ var webgl = (function() {
   }
 
   function updateViewport(ex, ey, dz, dx, dy, newWidth, newHeight) {
-    boundingBox = canvas.getBoundingClientRect();
     if (typeof newWidth === "number") width = newWidth;
     if (typeof newHeight === "number") height = newHeight;
+    if (typeof newWidth === "number" || typeof newHeight === "number") boundingBox = canvas.getBoundingClientRect();
 
     if (typeof dz === "number") {
       // xpos and ypos should be set such that the current lat,lon is still under ex,ey after the zoom.
