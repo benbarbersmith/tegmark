@@ -60,14 +60,29 @@ def about_page():
     return Response(json.dumps({'tegmark_version': tegmark_label}), 200, json_headers())
 
 
-@blueprint_api.route('/world/<world_id>', methods=['GET'])
+@blueprint_api.route('/world/<world_id>', methods=['GET', 'PUT'])
 def get_world(world_id=None):
-    got_world = worldclient.issue_world_command(
-        {'command': 'get_world', 'world_id': world_id})
-    if got_world['result'] == 'success':
-        return Response(json.dumps(got_world), 200, json_headers())
+    if request.method == 'PUT':
+        try:
+            user_data = request.get_json()
+        except Exception as e:
+            return Response(json.dumps({'error' : 'Bad Request', 'message' : u"Malformed JSON? {}".format(e)}), 400, json_headers())
+
+        command = {'command': 'take_action', 'world_id': world_id, 'actions': {}}
+        for action in user_data:
+            command['actions'][action] = user_data[action]
+        result = worldclient.issue_world_command(command)
+        if result['result'] == 'success':
+            return Response("", 204, json_headers())
+        else:
+            return Response(result, 422, json_headers())
     else:
-        return Response(json.dumps(got_world), 404, json_headers())
+        got_world = worldclient.issue_world_command(
+            {'command': 'get_world', 'world_id': world_id})
+        if got_world['result'] == 'success':
+            return Response(json.dumps(got_world), 200, json_headers())
+        else:
+            return Response(json.dumps(got_world), 404, json_headers())
 
 
 @blueprint_api.route('/world/<world_id>/structures', methods=['GET'])
@@ -88,6 +103,16 @@ def get_world_features(world_id=None):
         return Response(json.dumps(got_world_features), 200, json_headers())
     else:
         return Response(json.dumps(got_world_features), 404, json_headers())
+
+
+@blueprint_api.route('/world/<world_id>/points_of_interest', methods=['GET'])
+def get_world_points_of_interest(world_id=None):
+    got_world_points_of_interest = worldclient.issue_world_command(
+        {'command': 'get_world_points_of_interest', 'world_id': world_id})
+    if got_world_points_of_interest['result'] == 'success':
+        return Response(json.dumps(got_world_points_of_interest), 200, json_headers())
+    else:
+        return Response(json.dumps(got_world_points_of_interest), 404, json_headers())
 
 
 @blueprint_api.route('/worlds/', methods=['GET'])

@@ -2,10 +2,35 @@ var start = new Date();
 var isDown = false;
 var world = {};
 
+const server = "http://localhost:15000/api/world/";
+
 window.onload = function() {
   if (typeof worldId === "undefined") worldId = "1";
   getWorld(worldId);
 };
+
+function sendAction() {
+  var result = {};
+  var req = new XMLHttpRequest();
+  req.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      console.log(this.json);
+    } else if (this.readyState == 4) {
+      console.error(this);
+    }
+  };
+  req.open("PUT", server + world.id, true);
+  req.responseType = "json";
+  req.setRequestHeader("Content-Type", "application/json");
+  req.send(
+    JSON.stringify({
+      build_settlement: {
+        lon: -89.0,
+        lat: 89.0
+      }
+    })
+  );
+}
 
 function getResource(
   url,
@@ -39,7 +64,7 @@ function getWorld(worldId) {
   function pollForWorld() {
     console.log("Polling for world " + worldId);
     getResource(
-      "http://127.0.0.1:15000/api/world/" + worldId,
+      server + worldId,
       "json",
       "response",
       function(json) {
@@ -68,19 +93,39 @@ function getWorld(worldId) {
 
 function getWorldFeatures() {
   getResource(
-    "http://127.0.0.1:15000/api/world/" + world.id + "/structures",
+    server + world.id + "/structures",
     "arraybuffer",
     "response",
     buildWorld,
     console.error
   );
   getResource(
-    "http://127.0.0.1:15000/api/world/" + world.id + "/features",
+    server + world.id + "/features",
     "json",
     "response",
-    mergePropertiesIntoWorld,
+    mergeFeaturesIntoWorld,
     console.error
   );
+  getResource(
+    server + world.id + "/points_of_interest",
+    "json",
+    "response",
+    mergePointsOfInterestIntoWorld,
+    console.error
+  );
+}
+
+function addPointsOfInterestToWorld(unsetPointsOfInterest) {
+  for (var i = 0; i < unsetPointsOfInterest.length; i++) {
+    var poi = unsetPointsOfInterest[i];
+    index = getCellByCoords(world.polygons, poi.longitude, poi.latitude);
+    if (world.polygons[i].hasOwnProperty("pointsOfInterest")) {
+      world.polygons[i].pointsOfInterest.push(poi);
+    } else {
+      world.polygons[i].pointsOfInterest = [poi];
+    }
+  }
+  webgl.updatePolygons(world.polygons);
 }
 
 function addFeaturesToWorld(unsetFeatures) {
@@ -117,11 +162,11 @@ function addFeaturesToWorld(unsetFeatures) {
 
   world.features = features;
 
-  webgl.updatePolygons(getPolygons(world.cells, world.nodes, world.colours));
+  webgl.updatePolygons(wheeler.getPolygons(world));
   updateColourSelector(features);
 }
 
-function mergePropertiesIntoWorld(json) {
+function mergeFeaturesIntoWorld(json) {
   if (
     world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("features")
   ) {
@@ -130,6 +175,19 @@ function mergePropertiesIntoWorld(json) {
     addFeaturesToWorld(json.features);
   } else {
     world.unsetFeatures = json.features;
+  }
+}
+
+function mergePointsOfInterestIntoWorld(json) {
+  if (
+    world.hasOwnProperty("cells") &&
+    world.cells[0].hasOwnProperty("points_of_interest")
+  ) {
+    return;
+  } else if (world.hasOwnProperty("cells")) {
+    addPointsOfInterestToWorld(json.points_of_interest);
+  } else {
+    world.unsetPointsOfInterest = json.points_of_interest;
   }
 }
 
@@ -142,17 +200,19 @@ function buildWorld(response) {
   wheeler.decode(response, world);
 
   if (world.hasOwnProperty("unsetFeatures")) {
-    addFeaturesToWorld(json.features);
+    addFeaturesToWorld(world.unsetFeatures);
     delete world.unsetFeatures;
+  }
+  if (world.hasOwnProperty("unsetPointsOfInterest")) {
+    addPointsOfInterestToWorld(world.unsetPointsOfInterest);
+    delete world.unsetPointsOfInterest;
   }
   renderWorld();
 }
 
 function renderWorld() {
   var canvas = resizeCanvas();
-  var polygons = getPolygons(world.cells, world.nodes, world.colours);
-  var paths = getPaths(world.paths, world.nodes, world.colours);
-  webgl.initialize(canvas, polygons, paths);
+  webgl.initialize(canvas, world.polygons, world.paths);
   console.log("First render: " + (new Date() - start) + " ms");
 
   setStatusOverlay("World " + world.id + " is ready to explore!");
@@ -160,7 +220,7 @@ function renderWorld() {
   window.addEventListener("wheel", changeZoom, false);
   window.addEventListener("resize", resizeCanvas, false);
   window.addEventListener("mousemove", pan, false);
-  canvas.addEventListener("mousemove", updateHud(polygons, world.cells), false);
+  canvas.addEventListener("mousemove", updateHud, false);
   window.addEventListener(
     "mousedown",
     function() {
@@ -198,223 +258,60 @@ function pan(e) {
   if (isDown) webgl.updateViewport(null, null, null, e.movementX, -e.movementY);
 }
 
-function getPaths(paths, nodes, colours) {
-  var good = 0;
-  var toFix = [];
-  var ps = new Array(paths.length);
-
-  for (var i = 0; i < paths.length; i++) {
-    var path = new Array(paths[i].length);
-    for (var j = 0; j < paths[i].length; j++) {
-      var point = nodes[paths[i][j]];
-      path[j] = point;
-    }
-
-    var colour = new Float32Array(3);
-    for (var j = 0; j <= 2; j++) {
-      colour[j] = colours[paths[i].colour][j] / 255.0;
-    }
-
-    if (!isWorldWrapping(path)) {
-      path.colour = colour;
-      ps[i] = path;
-      good = i;
-    } else {
-      // TODO: Fix world wrapping lines properly.
-      toFix.push(i);
-    }
-  }
-  for (var i = 0; i < toFix.length; i++) {
-    ps[toFix[i]] = ps[good];
-  }
-  return ps;
-}
-
-function getPolygons(cells, nodes, colours) {
-  var hasFeatures = cells[0].hasOwnProperty("features");
-  var polygons = new Array(cells.length);
-
-  for (var i = 0; i < cells.length; i++) {
-    var polygon = new Array(cells[i].length);
-    var boundingBox = new Float32Array(4);
-    for (var j = 0; j < cells[i].length; j++) {
-      var point = nodes[cells[i][j]];
-      polygon[j] = point;
-      if (boundingBox[0] > point[0]) boundingBox[0] = point[0];
-      if (boundingBox[1] < point[0]) boundingBox[1] = point[0];
-      if (boundingBox[2] > point[1]) boundingBox[2] = point[1];
-      if (boundingBox[3] < point[1]) boundingBox[3] = point[1];
-    }
-    var colour = {};
-    var defaultColour = new Float32Array(3);
-    for (var j = 0; j <= 2; j++) {
-      defaultColour[j] = colours[cells[i].colour][j] / 255.0;
-    }
-    colour["biomes"] = defaultColour;
-
-    if (hasFeatures) {
-      var keys = Object.keys(cells[i].features);
-      for (var j = 0; j < keys.length; j++) {
-        var key = keys[j];
-        colour[key] = world.features[key].colour(cells[i].features[key]);
+function getCellByCoords(longitude, latitude) {
+  var index = -1;
+  for (i = 0; i < world.polygons.length; i++) {
+    if (pointInPolygon(longitude, longitude, world.polygons[i])) {
+      if (world.polygons[i].hasOwnProperty("index")) {
+        index = world.polygons[i].index;
+      } else {
+        index = i;
       }
-    }
-
-    if (!isWorldWrapping(polygon)) {
-      polygon.colour = colour;
-      polygon.boundingBox = boundingBox;
-      polygons[i] = polygon;
-    } else {
-      var newPolygons = splitConvexPolygon(polygon);
-      newPolygons[0].colour = colour;
-      newPolygons[0].boundingBox = boundingBox;
-      polygons[i] = newPolygons[0];
-      if (newPolygons.length > 1) {
-        newPolygons[1].index = i;
-        newPolygons[1].colour = colour;
-        newPolygons[1].boundingBox = boundingBox;
-        polygons.push(newPolygons[1]);
-      }
+      break;
     }
   }
-  return polygons;
+  return index;
 }
 
-function crossProduct(p0, p1, p2) {
-  var dx1 = p1[0] - p0[0]; // x[k+1]-x[k]
-  var dy1 = p1[1] - p0[1]; // y[k+1]-y[k]
-  var dx2 = p2[0] - p1[0]; // x[k+2]-x[k+1]
-  var dy2 = p2[1] - p1[1]; // y[k+2]-y[k+1]
-  return dx1 * dy2 - dy1 * dx2;
-}
+function updateHud(e) {
+  var canvas = document.getElementById("canvas");
+  var point = webgl.getLatLon(e.x, e.y);
+  var lon = point[0];
+  var lat = point[1];
 
-function isWorldWrapping(p) {
-  var i = 0, j = 0;
-  for (i = 0; i < p.length; i++) {
-    j = i + 1;
-    if (j == p.length) j = 0;
-    if (Math.abs(p[j][0] - p[i][0]) > 90) return true;
+  var index = getCellByCoords(lon, lat);
+  if (index == -1) return;
+
+  var cell = world.cells[i];
+
+  var latlonElement = document.getElementById("coordsOverlay");
+  latlonElement.innerHTML = "LatLon: (" +
+    lat.toFixed(6) +
+    ", " +
+    lon.toFixed(6) +
+    ")";
+  var altElement = document.getElementById("altitudeOverlay");
+  if (cell && cell.hasOwnProperty("features")) {
+    altElement.innerHTML = "Alt: " + cell.features.terrain_altitude.toFixed(2);
   }
-  return false;
-}
-
-function isConvex(polygon) {
-  for (i = 2; i < polygon.length + 2; i++) {
-    var p0, p1, p2;
-    i >= polygon.length ? (p2 = i - polygon.length) : (p2 = i);
-    i - 1 >= polygon.length ? (p1 = i - polygon.length - 1) : (p1 = i - 1);
-    i - 2 >= polygon.length ? (p1 = i - polygon.length - 2) : (p0 = i - 2);
-    if (crossProduct(polygon[p0], polygon[p1], polygon[p2]) < 0) return false;
-  }
-  return true;
-}
-
-function intersectionOfLine(p0, p1) {
-  var x, y;
-  p0[0] < 0 ? (x = 180) : (x = -180);
-  y = p1[1] - (p1[1] - p0[1]) / (p1[0] - p0[0]) * p1[0];
-  return [[x, y], [-x, y]];
-}
-
-function splitConvexPolygon(polygon) {
-  var crossCount = 0;
-  var crossedBorder = false;
-  var axis = 0;
-  var polygon1 = [], polygon2 = [];
-  var p0, p1, crossingPoints;
-
-  for (i = 0; i < polygon.length; i++) {
-    p0 = polygon[i];
-    var j = i + 1;
-    if (i == polygon.length - 1) j = 0;
-    p1 = polygon[j];
-    if (p0[axis] < 0) {
-      polygon1.push(p0);
-      if (p1[axis] >= 0) {
-        crossingPoints = intersectionOfLine(p0, p1, axis);
-        crossingPoints[0].push(p0[2]);
-        crossingPoints[1].push(p0[2]);
-        crossCount++;
-        polygon1.push(crossingPoints[1]);
-        polygon2.push(crossingPoints[0]);
-      }
-    } else {
-      polygon2.push(p0);
-      if (p1[axis] < 0) {
-        crossingPoints = intersectionOfLine(p0, p1, axis);
-        crossCount++;
-        polygon1.push(crossingPoints[0]);
-        polygon2.push(crossingPoints[1]);
-      }
-    }
-  }
-
-  if (crossCount > 0 && crossCount % 2 == 0) {
-    if (polygon1.length > 0 && polygon2.length > 0) {
-      return [polygon1, polygon2];
-    } else if (polygon1.length == 0) {
-      return [polygon2];
-    } else if (polygon2.length == 0) {
-      return [polygon1];
-    }
-  } else {
-    return [polygon];
-  }
-}
-
-function updateHud(polygons, cells) {
-  return function(e) {
-    var index = -1;
-    var canvas = document.getElementById("canvas");
-    var point = webgl.getLatLon(e.x, e.y);
-    var lon = point[0];
-    var lat = point[1];
-
-    for (i = 0; i < polygons.length; i++) {
-      if (pointInPolygon(lon, lat, polygons[i])) {
-        if (polygons[i].hasOwnProperty("index")) {
-          index = polygons[i].index;
-        } else {
-          index = i;
-        }
-        break;
-      }
-    }
-
-    if (index == -1) return;
-
-    var latlonElement = document.getElementById("coordsOverlay");
-    latlonElement.innerHTML = "LatLon: (" +
-      lat.toFixed(6) +
-      ", " +
-      lon.toFixed(6) +
+  if (cell && cell.hasOwnProperty("features")) {
+    var featuresElement = document.getElementById("features");
+    var c = "rgb(" +
+      world.colours[cell.colour][0] +
+      "," +
+      world.colours[cell.colour][1] +
+      "," +
+      world.colours[cell.colour][2] +
       ")";
-    var altElement = document.getElementById("altitudeOverlay");
-    if (cells[i] && cells[i].hasOwnProperty("features")) {
-      altElement.innerHTML = "Alt: " +
-        cells[i].features.terrain_altitude.toFixed(2);
-    }
-    if (cells[i] && cells[i].hasOwnProperty("features")) {
-      var featuresElement = document.getElementById("features");
-      var c = "rgb(" +
-        colours[cells[i].colour][0] +
-        "," +
-        colours[cells[i].colour][1] +
-        "," +
-        colours[cells[i].colour][2] +
-        ")";
-      featuresElement.innerHTML = JSON.stringify(cells[i].features, null, 2);
-      latlonElement.style.color = c;
-      altElement.style.color = c;
-      featuresElement.style.color = c;
-    }
-  };
-}
-
-function keyToReadableValue(key) {
-  key = key.replace("_", " ");
-  key = key[0].toUpperCase() + key.slice(1);
-  return key;
+    featuresElement.innerHTML = JSON.stringify(
+      world.cells[i].features,
+      null,
+      2
+    );
+    latlonElement.style.color = c;
+    altElement.style.color = c;
+    featuresElement.style.color = c;
+  }
 }
 
 function updateColourSelector(features) {
@@ -433,6 +330,12 @@ function updateColourSelector(features) {
     element.innerHTML = keyToReadableValue(keys[i]);
     colourmaps.appendChild(element);
   }
+}
+
+function keyToReadableValue(key) {
+  key = key.replace("_", " ");
+  key = key[0].toUpperCase() + key.slice(1);
+  return key;
 }
 
 function pointInPolygon(x, y, vertices) {

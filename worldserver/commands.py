@@ -3,6 +3,7 @@ commands.py interprets commands passed from the world server server thread and t
 everett worlds kept in memory
 """
 
+import json
 import random
 import re
 from threading import Thread
@@ -19,6 +20,7 @@ class WorldHolder(object):
         self._name = name
         self._structures = None
         self._features = None
+        self._points_of_interest = None
         self._everett = None
 
     @property
@@ -55,6 +57,14 @@ class WorldHolder(object):
     @features.setter
     def features(self, features):
         self._features = features
+
+    @property
+    def points_of_interest(self):
+        return self._points_of_interest
+
+    @points_of_interest.setter
+    def points_of_interest(self, points_of_interest):
+        self._points_of_interest = points_of_interest
 
     @property
     def everett(self):
@@ -143,24 +153,39 @@ def resolve_command(command, global_state_dict, global_lock):
         else:
             return {'result': 'success', 'features': global_state_dict[world_id].features}
 
-    if command['command'] == 'update_world':
+    if command['command'] == 'get_world_points_of_interest':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
+        elif global_state_dict[world_id].status != "complete":
+            return error_response('world is still generating')
+        else:
+            return {'result': 'success', 'points_of_interest': global_state_dict[world_id].points_of_interest}
+
+    if command['command'] == 'take_action':
         world_id = command.get('world_id', None)
         if world_id is None:
             return error_response('must specify world_id')
         elif world_id not in global_state_dict:
             return error_response("world {} doesn't exist".format(world_id))
-        if 'update' not in command:
+        if 'actions' not in command:
             return error_response("nothing to update!")
 
         try:
             global_lock.acquire()
-            if 'properties' in command['update']:
-                global_state_dict[world_id].properties = command['update']['properties']
-            if 'name' in command['update']:
-                global_state_dict[world_id].name = command['update']['name']
-            # if 'topography' in command['update']:
-            #    global_state_dict[world_id].everett.create_altitude_chains(command['update']['topography'])
-            result = {'result': 'success'}
+            if 'build_settlement' in command['actions']:
+                details = command['actions']['build_settlement']
+                if "lon" not in details or "lat" not in details:
+                    error_response("'build_settlement' action requires lat and lon")
+                world = global_state_dict[world_id].everett;
+                from everett.pointsofinterest.settlement import Settlement
+                poi = Settlement(world, details["lon"], details["lat"], 1, 1)
+                global_state_dict[world_id].points_of_interest.append(poi.__dict__())
+                result = {'result': 'success', 'point_of_interest': json.dumps(poi.__dict__())}
+            else:
+                error_response("no action, or action unrecognised")
         finally:
             global_lock.release()
         return result
