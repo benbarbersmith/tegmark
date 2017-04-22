@@ -1,12 +1,12 @@
 from everett.worldgenerators import world_three
 from everett.export import wheeler
-
+from timeit import default_timer as timer
 
 def add_world(world_id, global_state_dict, global_lock):
+    start = timer()
     w = world_three.generate_world(seed=int(world_id), total_cells_desired=10000)
-    # for a in range(30):
-    #     logger.debug(u"Waiting for {} seconds...".format(a))
-    #     time.sleep(1)
+    end = timer()
+    print("Everett total worldgen took {0}".format(end-start))
     global_lock.acquire()
     (structures, features) = wheeler.pack(w)
     global_state_dict[world_id].everett = w
