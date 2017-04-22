@@ -15,9 +15,9 @@ var colourmaps = (function() {
       console.error(
         "Colouring by maxima requires a parameter object with a buckets, min, max value."
       );
-      return rgb(50, 50, 50);
+      return rgb(0, 0, 0);
     } else {
-      var bounds = [rgb(50, 50, 50), rgb(240, 240, 240)];
+      var bounds = [rgb(0, 0, 0), rgb(255, 255, 255)];
       var steps = [];
       var ranges = [];
 

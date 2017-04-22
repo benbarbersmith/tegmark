@@ -184,10 +184,6 @@ var webgl = (function() {
   }
 
   function getColoursForPolygons(polygons, numVertices, feature) {
-    if (typeof feature !== "string") {
-      feature = "biomes";
-    }
-
     var x = 0;
     var colours = new Float32Array(numVertices * 4);
 
@@ -200,7 +196,16 @@ var webgl = (function() {
     }
     for (i = 0; i < polygons.length; i++) {
       var polygon = polygons[i];
-      var colour = polygon.colour[feature];
+      var colour = Array(3);
+      if (typeof feature !== "string" || feature == "biomes") {
+        colour = polygon.colour["biomes"];
+      } else {
+        var biomeColour = polygon.colour["biomes"];
+        var modifierColour = polygon.colour[feature];
+        for (var j = 0; j <= 2; j++) {
+          colour[j] = biomeColour[j] * modifierColour[j];
+        }
+      }
       addVertex(colour);
       for (j = 1; j < polygon.length - 1; j += 2) {
         addVertex(colour);
