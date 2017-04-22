@@ -12,13 +12,13 @@ var webgl = (function() {
     [-360, 180]
   ];
 
-  var gl, buffers, shaders, polygons, cells;
+  var gl, buffers, shaders, polygons, paths, vertexArray, colourArray;
   var windowChanged = true;
   var dxBuffer = 0.0, dyBuffer = 0.0;
   var xpos = 0.0, ypos = 0.0, zpos = 1.0;
   var width = 0.0, height = 0.0;
   var boundingBox;
-  var numVertices = 0;
+  var numPolygonVertices = 0, numPathVertices = 0;
 
   var mvMatrix = mvTranslate([xpos, ypos, -fov / zpos], Matrix.I(4));
   var perspectiveMatrix = makePerspective(45, width / height, 0.001, 1000.0);
@@ -113,26 +113,56 @@ var webgl = (function() {
     return shader;
   }
 
-  function initBuffers(gl, polygons, numVertices) {
-    var vertices = getVertices(polygons, numVertices);
-    var colours = getColours(polygons, numVertices);
-    var glVerticesBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, glVerticesBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-    var glVerticesColourBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, glVerticesColourBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
+  function initBuffers(
+    gl,
+    polygons,
+    numPolygonVertices,
+    paths,
+    numPathVertices
+  ) {
+    var polygonVertices = getVerticesForPolygons(polygons, numPolygonVertices);
+    var polygonColours = getColoursForPolygons(polygons, numPolygonVertices);
+    var pathVertices = getVerticesForPaths(paths, numPathVertices);
+    var pathColours = getColoursForPaths(paths, numPathVertices);
+
+    vertexArray = new Float32Array((numPolygonVertices + numPathVertices) * 3);
+    vertexArray.set(polygonVertices);
+    vertexArray.set(pathVertices, numPolygonVertices * 3);
+
+    colourArray = new Float32Array((numPolygonVertices + numPathVertices) * 4);
+    colourArray.set(polygonColours);
+    colourArray.set(pathColours, numPolygonVertices * 4);
+
+    var verticesBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
+
+    var colourBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);
+
     return {
-      cellVerticesBuffer: glVerticesBuffer,
-      cellVerticesColourBuffer: glVerticesColourBuffer
+      verticesBuffer: verticesBuffer,
+      colourBuffer: colourBuffer
     };
   }
 
-  function getColours(polygons, numVertices, feature) {
+  function getColoursForPaths(paths, numVertices) {
     var x = 0;
-    var colourFunction;
-    var value;
-    var key;
+    var colours = new Float32Array(numVertices * 4);
+    var colour = paths[0].colour;
+    for (var i = 0; i < numVertices; i++) {
+      colours.set(colour, i * 4);
+    }
+    return colours;
+  }
+
+  function getColoursForPolygons(polygons, numVertices, feature) {
+    if (typeof feature !== "string") {
+      feature = "biomes";
+    }
+
+    var x = 0;
     var colours = new Float32Array(numVertices * 4);
 
     function addVertex(colour) {
@@ -142,37 +172,8 @@ var webgl = (function() {
       colours[x + 3] = 1.0; // Full opacity;
       x += 4;
     }
-    if (
-      typeof feature !== "object" ||
-      !feature.hasOwnProperty("name") ||
-      !feature.hasOwnProperty("colour")
-    ) {
-      colourFunction = function(i) {
-        return polygons[i].colour;
-      };
-    } else {
-      colourFunction = feature.colour;
-      key = feature.name;
-    }
     for (i = 0; i < polygons.length; i++) {
-      if (typeof key !== "string") {
-        value = i;
-      } else {
-        var idx = i;
-        if (i > cells.length && polygons[i].hasOwnProperty("index")) {
-          idx = polygons[i].index;
-        }
-        if (
-          idx < cells.length &&
-          cells[idx].hasOwnProperty("features") &&
-          cells[idx].features.hasOwnProperty(key)
-        ) {
-          value = cells[idx].features[key];
-        } else {
-          value = feature.min;
-        }
-      }
-      var colour = colourFunction(value);
+      var colour = polygons[i].colour[feature];
       addVertex(colour);
       addVertex(colour);
       addVertex(colour);
@@ -196,15 +197,16 @@ var webgl = (function() {
     return colours;
   }
 
-  function recolour(property) {
-    var colours = getColours(polygons, numVertices, property);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.cellVerticesColourBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
-    windowChanged = true;
-    drawScene();
+  function countVerticesForPaths(paths) {
+    var numVertices = 0;
+    for (var i = 0; i < paths.length; i++) {
+      // For triangle strip, need 4 points for every line segment, plus two more points for the denegerate triangle.
+      numVertices += paths[i].length * 6;
+    }
+    return numVertices;
   }
 
-  function countVertices(polygons) {
+  function countVerticesForPolygons(polygons) {
     var n = 0;
     var vs = 0;
     for (var i = 0; i < polygons.length; i++) {
@@ -216,8 +218,46 @@ var webgl = (function() {
     return vs;
   }
 
-  function getVertices(polygons, numVertices) {
-    var x = 0, y = 0;
+  function getVerticesForPaths(paths, numVertices) {
+    var x = 0;
+    var p0mod, p1mod;
+    var vertices = new Float32Array(numVertices * 3);
+
+    function addSegment(p0, p1) {
+      //TODO: Respect the river width.
+      var dx = p1[0] - p0[0];
+      var dy = p1[1] - p0[1];
+      var normal = [-dy, dx];
+
+      p0mod = [p0[0] + 0.1 * normal[0], p0[1] + 0.1 * normal[1], p0[2]];
+      p1mod = [p1[0] + 0.1 * normal[0], p1[1] + 0.1 * normal[1], p1[2]];
+
+      addVertex(p0);
+      addVertex(p0mod);
+      addVertex(p1mod);
+      addVertex(p1);
+    }
+
+    function addVertex(point) {
+      vertices[x] = point[0];
+      vertices[x + 1] = point[1];
+      vertices[x + 2] = 0.0;
+      x += 3;
+    }
+
+    for (i = 0; i < paths.length; i++) {
+      addVertex(paths[i][0]);
+      for (j = 0; j < paths[i].length - 1; j++) {
+        addSegment(paths[i][j], paths[i][j + 1]);
+        if (j + 1 < paths.length - 1) addVertex(p1mod);
+      }
+      addVertex([paths[i].length - 1]);
+    }
+    return vertices;
+  }
+
+  function getVerticesForPolygons(polygons, numVertices) {
+    var x = 0;
     var vertices = new Float32Array(numVertices * 3);
 
     function addVertex(point) {
@@ -256,6 +296,7 @@ var webgl = (function() {
   function mvTranslate(v, mvMatrix) {
     return mvMatrix.x(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
   }
+
   function setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaderProgram) {
     var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
     gl.uniformMatrix4fv(
@@ -268,6 +309,19 @@ var webgl = (function() {
     gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
   }
 
+  function updatePolygons(ps) {
+    polygons = ps;
+  }
+
+  function recolour(feature) {
+    var colours = getColoursForPolygons(polygons, numPolygonVertices, feature);
+    colourArray.set(colours);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);
+    windowChanged = true;
+    drawScene();
+  }
+
   function drawScene() {
     if (!initialized) {
       console.error("Intialize webgl before using this function.");
@@ -278,33 +332,33 @@ var webgl = (function() {
 
     perspectiveMatrix = makePerspective(45, width / height, 0.001, 1000.0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.cellVerticesBuffer);
-    gl.vertexAttribPointer(
-      shaders.vertexPositionAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      0,
-      0
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.cellVerticesColourBuffer);
-    gl.vertexAttribPointer(
-      shaders.vertexColourAttribute,
-      4,
-      gl.FLOAT,
-      false,
-      0,
-      0
-    );
-
     for (var i = 0; i < repetitions.length; i++) {
       mvMatrix = mvTranslate(
         [xpos + repetitions[i][0], ypos + repetitions[i][1], -fov / zpos],
         Matrix.I(4)
       );
       setMatrixUniforms(gl, perspectiveMatrix, mvMatrix, shaders.shaderProgram);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, numVertices);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffers.verticesBuffer);
+      gl.vertexAttribPointer(
+        shaders.vertexPositionAttribute,
+        3,
+        gl.FLOAT,
+        false,
+        0,
+        0
+      );
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
+      gl.vertexAttribPointer(
+        shaders.vertexColourAttribute,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+      );
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, numPolygonVertices + numPathVertices);
     }
   }
 
@@ -386,19 +440,26 @@ var webgl = (function() {
     ];
   }
 
-  function initialize(canvasElement, ps, cs) {
-    polygons = ps;
-    cells = cs;
+  function initialize(canvasElement, polygonArray, pathArray) {
+    polygons = polygonArray;
+    paths = pathArray;
     canvas = canvasElement;
     width = canvas.width;
     height = canvas.height;
     boundingBox = canvas.getBoundingClientRect();
 
-    numVertices = countVertices(polygons);
+    numPolygonVertices = countVerticesForPolygons(polygons);
+    numPathVertices = countVerticesForPaths(paths);
 
     gl = initWebGL(canvas);
     shaders = initShaders(gl);
-    buffers = initBuffers(gl, polygons, numVertices);
+    buffers = initBuffers(
+      gl,
+      polygons,
+      numPolygonVertices,
+      paths,
+      numPathVertices
+    );
 
     initialized = true;
 
@@ -411,6 +472,7 @@ var webgl = (function() {
     checkScene: checkScene,
     getLatLon: getLatLon,
     updateViewport: updateViewport,
+    updatePolygons: updatePolygons,
     recolour: recolour
   };
 })();

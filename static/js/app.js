@@ -83,43 +83,53 @@ function getWorldFeatures() {
   );
 }
 
-function mergePropertiesIntoWorld(json) {
+function addFeaturesToWorld(unsetFeatures) {
   var features = {};
+  for (var i = 0; i < unsetFeatures.cells.length; i++) {
+    world.cells[i].features = unsetFeatures.cells[i];
+    var featureKeys = Object.keys(world.cells[i].features);
+    for (var j = 0; j < featureKeys.length; j++) {
+      var key = featureKeys[j];
+      var featureMinMax = features[key];
+      if (typeof featureMinMax === "undefined") {
+        featureMinMax = { name: key, min: 0.0, max: 0.0 };
+      }
+      var value = world.cells[i].features[key];
+      if (featureMinMax.min > value) featureMinMax.min = value;
+      if (featureMinMax.max < value) featureMinMax.max = value;
+      features[key] = featureMinMax;
+    }
+  }
+  var featureKeys = Object.keys(features);
+  for (var i = 0; i < featureKeys.length; i++) {
+    var feature = features[featureKeys[i]];
+    feature.colour = colourmaps.getMap("chloropleth", {
+      buckets: 50,
+      min: feature.min,
+      max: feature.max
+    });
+    features[featureKeys[i]] = feature;
+  }
+
+  for (var i = 0; i < unsetFeatures.paths.length; i++) {
+    world.paths[i].features = unsetFeatures.paths[i];
+  }
+
+  world.features = features;
+
+  webgl.updatePolygons(getPolygons(world.cells, world.nodes, world.colours));
+  updateColourSelector(features);
+}
+
+function mergePropertiesIntoWorld(json) {
   if (
     world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("features")
   ) {
     return;
   } else if (world.hasOwnProperty("cells")) {
-    for (var i = 0; i < json.features.cells.length; i++) {
-      world.cells[i].features = json.features.cells[i];
-      var featureKeys = Object.keys(world.cells[i].features);
-      for (var j = 0; j < featureKeys.length; j++) {
-        var key = featureKeys[j];
-        var featureMinMax = features[key];
-        if (typeof featureMinMax === "undefined") {
-          featureMinMax = { name: key, min: 0.0, max: 0.0 };
-        }
-        var value = world.cells[i].features[key];
-        if (featureMinMax.min > value) featureMinMax.min = value;
-        if (featureMinMax.max < value) featureMinMax.max = value;
-        features[key] = featureMinMax;
-      }
-    }
-    var featureKeys = Object.keys(features);
-    for (var i = 0; i < featureKeys.length; i++) {
-      var feature = features[featureKeys[i]];
-      feature.colour = colourmaps.getMap("chloropleth", {
-        buckets: 50,
-        min: feature.min,
-        max: feature.max
-      });
-      features[featureKeys[i]] = feature;
-    }
-    updateColourSelector(features, featureKeys);
-    world.features = features;
-    console.log("Startup time: " + (new Date() - start) + " ms");
+    addFeaturesToWorld(json.features);
   } else {
-    world.features = json.features;
+    world.unsetFeatures = json.features;
   }
 }
 
@@ -128,18 +138,22 @@ function buildWorld(response) {
     console.error("World already built!");
     return;
   }
+
   wheeler.decode(response, world);
+
+  if (world.hasOwnProperty("unsetFeatures")) {
+    addFeaturesToWorld(json.features);
+    delete world.unsetFeatures;
+  }
+  renderWorld();
+}
+
+function renderWorld() {
   var canvas = resizeCanvas();
   var polygons = getPolygons(world.cells, world.nodes, world.colours);
-  webgl.initialize(canvas, polygons, world.cells);
+  var paths = getPaths(world.paths, world.nodes, world.colours);
+  webgl.initialize(canvas, polygons, paths);
   console.log("First render: " + (new Date() - start) + " ms");
-
-  if (world.hasOwnProperty("features")) {
-    for (var i = 0; i < world.cells.length; i++) {
-      world.cells[i].features = world.features.cells[i];
-    }
-    delete world.features;
-  }
 
   setStatusOverlay("World " + world.id + " is ready to explore!");
 
@@ -184,9 +198,42 @@ function pan(e) {
   if (isDown) webgl.updateViewport(null, null, null, e.movementX, -e.movementY);
 }
 
+function getPaths(paths, nodes, colours) {
+  var good = 0;
+  var toFix = [];
+  var ps = new Array(paths.length);
+
+  for (var i = 0; i < paths.length; i++) {
+    var path = new Array(paths[i].length);
+    for (var j = 0; j < paths[i].length; j++) {
+      var point = nodes[paths[i][j]];
+      path[j] = point;
+    }
+
+    var colour = new Float32Array(3);
+    for (var j = 0; j <= 2; j++) {
+      colour[j] = colours[paths[i].colour][j] / 255.0;
+    }
+
+    if (!isWorldWrapping(path)) {
+      path.colour = colour;
+      ps[i] = path;
+      good = i;
+    } else {
+      // TODO: Fix world wrapping lines properly.
+      toFix.push(i);
+    }
+  }
+  for (var i = 0; i < toFix.length; i++) {
+    ps[toFix[i]] = ps[good];
+  }
+  return ps;
+}
+
 function getPolygons(cells, nodes, colours) {
-  var success = 0, failure = 0;
+  var hasFeatures = cells[0].hasOwnProperty("features");
   var polygons = new Array(cells.length);
+
   for (var i = 0; i < cells.length; i++) {
     var polygon = new Array(cells[i].length);
     var boundingBox = new Float32Array(4);
@@ -198,10 +245,21 @@ function getPolygons(cells, nodes, colours) {
       if (boundingBox[2] > point[1]) boundingBox[2] = point[1];
       if (boundingBox[3] < point[1]) boundingBox[3] = point[1];
     }
-    var colour = new Float32Array(3);
+    var colour = {};
+    var defaultColour = new Float32Array(3);
     for (var j = 0; j <= 2; j++) {
-      colour[j] = colours[cells[i].colour][j] / 255.0;
+      defaultColour[j] = colours[cells[i].colour][j] / 255.0;
     }
+    colour["biomes"] = defaultColour;
+
+    if (hasFeatures) {
+      var keys = Object.keys(cells[i].features);
+      for (var j = 0; j < keys.length; j++) {
+        var key = keys[j];
+        colour[key] = world.features[key].colour(cells[i].features[key]);
+      }
+    }
+
     if (!isWorldWrapping(polygon)) {
       polygon.colour = colour;
       polygon.boundingBox = boundingBox;
@@ -219,7 +277,6 @@ function getPolygons(cells, nodes, colours) {
       }
     }
   }
-  console.log("Total polygons: " + polygons.length);
   return polygons;
 }
 
@@ -231,12 +288,12 @@ function crossProduct(p0, p1, p2) {
   return dx1 * dy2 - dy1 * dx2;
 }
 
-function isWorldWrapping(polygon) {
+function isWorldWrapping(p) {
   var i = 0, j = 0;
-  for (i = 0; i < polygon.length; i++) {
+  for (i = 0; i < p.length; i++) {
     j = i + 1;
-    if (j == polygon.length) j = 0;
-    if (Math.abs(polygon[j][0] - polygon[i][0]) > 90) return true;
+    if (j == p.length) j = 0;
+    if (Math.abs(p[j][0] - p[i][0]) > 90) return true;
   }
   return false;
 }
@@ -291,8 +348,6 @@ function splitConvexPolygon(polygon) {
       }
     }
   }
-  polygon1.push(polygon1[0]);
-  polygon2.push(polygon2[0]);
 
   if (crossCount > 0 && crossCount % 2 == 0) {
     if (polygon1.length > 0 && polygon2.length > 0) {
@@ -362,17 +417,14 @@ function keyToReadableValue(key) {
   return key;
 }
 
-function updateColourSelector(features, keys) {
+function updateColourSelector(features) {
+  var keys = Object.keys(features);
   var colourmaps = document.getElementById("colourmapSelect");
   while (colourmaps.children.length > 1) {
     colourmaps.removeChild(colourmaps.lastChild);
   }
   colourmaps.onchange = function(e) {
-    if (e.srcElement.value !== "default") {
-      webgl.recolour(features[e.srcElement.value]);
-    } else {
-      webgl.recolour();
-    }
+    webgl.recolour(e.srcElement.value);
   };
   for (var i = 0; i < keys.length; i++) {
     if (keys[i].slice(keys[i].length - 3) == "_id") continue;

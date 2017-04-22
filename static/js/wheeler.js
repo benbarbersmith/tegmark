@@ -2,11 +2,13 @@ var wheeler = (function() {
   const bytesPerNode = 14; // 3 floats + 2 unsigned integers.
 
   return {
-    decode: function(arrayBuffer, world) {
+    decode: function(arrayBuffer, world, logger) {
       if (world.hasOwnProperty("cells")) {
         console.error("World already built!");
         return;
       }
+
+      if (typeof logger === "undefined") logger = function() {};
 
       var start = new Date();
       var nodeSectionLength = 0, cellSectionLength = 0, colourSectionLength = 0;
@@ -45,7 +47,7 @@ var wheeler = (function() {
           nodes.push(node);
         }
       }
-      console.log(
+      logger(
         "Read " + nodes.length + " nodes from " + nodeSectionLength + " bytes"
       );
 
@@ -72,7 +74,7 @@ var wheeler = (function() {
         }
       }
 
-      console.log(
+      logger(
         "Read " +
           colours.length +
           " colours from " +
@@ -83,12 +85,12 @@ var wheeler = (function() {
       var bytesPerNodeIndex = Math.ceil(Math.log2(nodes.length) / 8);
       var bytesPerColourIndex = Math.ceil(Math.log2(colours.length) / 8);
 
-      console.log(
+      logger(
         "Expecting node indices with " +
           bytesPerNodeIndex +
           " bytes per cell index"
       );
-      console.log(
+      logger(
         "Expecting colour indices with " +
           bytesPerColourIndex +
           " bytes per colour index"
@@ -150,7 +152,7 @@ var wheeler = (function() {
             }
           }
         }
-        console.log("Read " + objects.length + " " + objectName);
+        logger("Read " + objects.length + " " + objectName);
         return objects;
       }
       var cells = getObjects("cells");
@@ -162,7 +164,7 @@ var wheeler = (function() {
       world.colours = colours;
 
       var end = new Date();
-      console.log("Parse time: " + (end - start) + " ms");
+      logger("Parse time: " + (end - start) + " ms");
     }
   };
 })();
