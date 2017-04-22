@@ -113,7 +113,7 @@ var wheeler = (function() {
         return index;
       }
 
-      function getObjects(bytesPerAnnotation, annotationName, objectName) {
+      function getObjects(objectName) {
         if (typeof objectName === "undefined") objectName = "objects";
         var lastIndex = -1, lastObjectIndex = -1;
         var objects = [], object = [];
@@ -136,12 +136,12 @@ var wheeler = (function() {
                   break objectLoop;
                 }
               } else {
-                object[annotationName] = getIndex(
-                  bytesPerAnnotation,
+                object["colour"] = getIndex(
+                  bytesPerColourIndex,
                   i + bytesPerNodeIndex
                 );
                 objects.push(object);
-                offset = i + bytesPerNodeIndex + bytesPerAnnotation;
+                offset = i + bytesPerNodeIndex + bytesPerColourIndex;
                 break indexLoop;
               }
             } else {
@@ -153,8 +153,8 @@ var wheeler = (function() {
         console.log("Read " + objects.length + " " + objectName);
         return objects;
       }
-      var cells = getObjects(bytesPerColourIndex, "colour", "cells");
-      var paths = getObjects(1, "type", "paths");
+      var cells = getObjects("cells");
+      var paths = getObjects("paths");
 
       world.nodes = nodes;
       world.cells = cells;
