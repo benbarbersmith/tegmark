@@ -73,9 +73,9 @@ def get_world(world_id=None):
             command['actions'][action] = user_data[action]
         result = worldclient.issue_world_command(command)
         if result['result'] == 'success':
-            return Response("", 204, json_headers())
+            return Response(json.dumps(result), 200, json_headers())
         else:
-            return Response(result, 422, json_headers())
+            return Response(json.dumps(result), 422, json_headers())
     else:
         got_world = worldclient.issue_world_command(
             {'command': 'get_world', 'world_id': world_id})

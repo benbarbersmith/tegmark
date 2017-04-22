@@ -1,6 +1,8 @@
 var start = new Date();
-var isDown = false;
 var world = {};
+var isDown = false;
+var feature = "biomes";
+var mode = "";
 
 const server = "http://localhost:15000/api/world/";
 
@@ -9,12 +11,21 @@ window.onload = function() {
   getWorld(worldId);
 };
 
-function sendAction() {
+function toggleMode(newMode) {
+  if (mode == "") {
+    mode = newMode;
+  } else {
+    mode = "";
+    webgl.recolourPolygons(feature);
+  }
+}
+
+function sendAction(action, successCallback) {
   var result = {};
   var req = new XMLHttpRequest();
   req.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      console.log(this);
+      successCallback(this.response);
     } else if (this.readyState == 4) {
       console.error(this);
     }
@@ -22,14 +33,20 @@ function sendAction() {
   req.open("PUT", server + world.id, true);
   req.responseType = "json";
   req.setRequestHeader("Content-Type", "application/json");
-  req.send(
-    JSON.stringify({
-      build_settlement: {
-        lon: -89.0,
-        lat: 89.0
-      }
-    })
-  );
+  req.send(JSON.stringify(action));
+}
+
+function buildSettlement(lon, lat) {
+  var action = {
+    build_settlement: {
+      lon: lon,
+      lat: lat
+    }
+  };
+  sendAction(action, function(json) {
+    world.pointsOfInterest.push(JSON.parse(json.point_of_interest));
+    webgl.updatePointsOfInterest(world.pointsOfInterest);
+  });
 }
 
 function getResource(
@@ -110,22 +127,12 @@ function getWorldFeatures() {
     server + world.id + "/points_of_interest",
     "json",
     "response",
-    mergePointsOfInterestIntoWorld,
+    function(json) {
+      world.pointsOfInterest = json.points_of_interest;
+      webgl.updatePointsOfInterest(world.pointsOfInterest);
+    },
     console.error
   );
-}
-
-function addPointsOfInterestToWorld(unsetPointsOfInterest) {
-  for (var i = 0; i < unsetPointsOfInterest.length; i++) {
-    var poi = unsetPointsOfInterest[i];
-    index = getCellByCoords(world.polygons, poi.longitude, poi.latitude);
-    if (world.polygons[i].hasOwnProperty("pointsOfInterest")) {
-      world.polygons[i].pointsOfInterest.push(poi);
-    } else {
-      world.polygons[i].pointsOfInterest = [poi];
-    }
-  }
-  webgl.updatePolygons(world.polygons);
 }
 
 function addFeaturesToWorld(unsetFeatures) {
@@ -178,19 +185,6 @@ function mergeFeaturesIntoWorld(json) {
   }
 }
 
-function mergePointsOfInterestIntoWorld(json) {
-  if (
-    world.hasOwnProperty("cells") &&
-    world.cells[0].hasOwnProperty("points_of_interest")
-  ) {
-    return;
-  } else if (world.hasOwnProperty("cells")) {
-    addPointsOfInterestToWorld(json.points_of_interest);
-  } else {
-    world.unsetPointsOfInterest = json.points_of_interest;
-  }
-}
-
 function buildWorld(response) {
   if (world.hasOwnProperty("cells")) {
     console.error("World already built!");
@@ -212,19 +206,20 @@ function buildWorld(response) {
 
 function renderWorld() {
   var canvas = resizeCanvas();
-  webgl.initialize(canvas, world.polygons, world.paths);
+  webgl.initialize(canvas, world.polygons, world.paths, world.pointsOfInterest);
   console.log("First render: " + (new Date() - start) + " ms");
 
   setStatusOverlay("World " + world.id + " is ready to explore!");
 
-  window.addEventListener("wheel", changeZoom, false);
+  canvas.addEventListener("wheel", changeZoom, false);
+  canvas.addEventListener("click", takeAction, false);
   window.addEventListener("resize", resizeCanvas, false);
   window.addEventListener("mousemove", pan, false);
-  canvas.addEventListener("mousemove", updateHud, false);
+  window.addEventListener("mousemove", updateHud, false);
   window.addEventListener(
     "mousedown",
     function() {
-      isDown = true;
+      if (mode == "") isDown = true;
     },
     false
   );
@@ -235,6 +230,14 @@ function renderWorld() {
     },
     false
   );
+}
+
+function takeAction(e) {
+  if (mode == "buildSettlement") {
+    point = webgl.getLatLon(e.x, e.y);
+    buildSettlement(point[0], point[1]);
+    toggleMode();
+  }
 }
 
 function resizeCanvas(e) {
@@ -261,7 +264,7 @@ function pan(e) {
 function getCellByCoords(longitude, latitude) {
   var index = -1;
   for (i = 0; i < world.polygons.length; i++) {
-    if (pointInPolygon(longitude, longitude, world.polygons[i])) {
+    if (pointInPolygon(longitude, latitude, world.polygons[i])) {
       if (world.polygons[i].hasOwnProperty("index")) {
         index = world.polygons[i].index;
       } else {
@@ -279,23 +282,29 @@ function updateHud(e) {
   var lon = point[0];
   var lat = point[1];
 
-  var index = getCellByCoords(lon, lat);
-  if (index == -1) return;
-
-  var cell = world.cells[i];
-
   var latlonElement = document.getElementById("coordsOverlay");
   latlonElement.innerHTML = "LatLon: (" +
     lat.toFixed(6) +
     ", " +
     lon.toFixed(6) +
     ")";
-  var altElement = document.getElementById("altitudeOverlay");
-  if (cell && cell.hasOwnProperty("features")) {
-    altElement.innerHTML = "Alt: " + cell.features.terrain_altitude.toFixed(2);
+
+  var index = getCellByCoords(lon, lat);
+  if (index == -1) return;
+
+  var cell = world.cells[index];
+
+  if (mode !== "") {
+    var colour = new Float32Array(4);
+    colour[0] = 1.0;
+    colour[3] = 1.0;
+    webgl.recolourPolygon(index, colour, feature);
   }
+
+  /**
   if (cell && cell.hasOwnProperty("features")) {
     var featuresElement = document.getElementById("features");
+    featuresElement.innerHTML = JSON.stringify(cell.features, null, 2);
     var c = "rgb(" +
       world.colours[cell.colour][0] +
       "," +
@@ -303,15 +312,10 @@ function updateHud(e) {
       "," +
       world.colours[cell.colour][2] +
       ")";
-    featuresElement.innerHTML = JSON.stringify(
-      world.cells[i].features,
-      null,
-      2
-    );
     latlonElement.style.color = c;
-    altElement.style.color = c;
     featuresElement.style.color = c;
   }
+  **/
 }
 
 function updateColourSelector(features) {
@@ -321,7 +325,8 @@ function updateColourSelector(features) {
     colourmaps.removeChild(colourmaps.lastChild);
   }
   colourmaps.onchange = function(e) {
-    webgl.recolour(e.srcElement.value);
+    feature = e.srcElement.value;
+    webgl.recolourPolygons(feature);
   };
   for (var i = 0; i < keys.length; i++) {
     if (keys[i].slice(keys[i].length - 3) == "_id") continue;

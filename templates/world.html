@@ -16,17 +16,22 @@
   <div id="overlay">
     <p id="textOverlay">
       <span id="coordsOverlay" class="overlay"></span>
-      <span id="altitudeOverlay" class="overlay"></span>
     </p>
+    <div id="actionsOverlay" class="overlay">
+      <h2>Actions</h2>
+      <button onclick="toggleMode('buildSettlement')">Build settlement</button>
+    </div>
+  </div>
+  <div id="colours">
+    <img src="static/img/biome_key.png" alt="key" />
     <div id="colourmapOverlay" class="overlay">
       <select id="colourmapSelect" class="form-control">
         <option value="biomes">Biomes</option>
       </select>
     </div>
   </div>
-  <pre id="features"></pre>
-  <div id="key">
-    <img src="static/img/biome_key.png" alt="key" />
+  <div class="overlay">
+    <pre id="features"></pre>
   </div>
 
   {% if world_id %}

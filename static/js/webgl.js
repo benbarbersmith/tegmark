@@ -12,13 +12,28 @@ var webgl = (function() {
     [-360, 180]
   ];
 
-  var gl, buffers, shaders, polygons, paths, vertexArray, colourArray;
+  var gl,
+    buffers,
+    shaders,
+    polygons,
+    paths,
+    pointsOfInterest,
+    vertexArray,
+    colourArray,
+    polygonVertices,
+    polygonColours,
+    pathVertices,
+    pathColours,
+    pointOfInterestVertices,
+    pointOfInterestColours;
   var windowChanged = true;
   var dxBuffer = 0.0, dyBuffer = 0.0;
   var xpos = 0.0, ypos = 0.0, zpos = 1.0;
   var width = 0.0, height = 0.0;
   var boundingBox;
-  var numPolygonVertices = 0, numPathVertices = 0;
+  var numPolygonVertices = 0,
+    numPathVertices = 0,
+    numPointOfInterestVertices = 0;
 
   var mvMatrix = mvTranslate([xpos, ypos, -fov / zpos], Matrix.I(4));
   var perspectiveMatrix = makePerspective(45, width / height, 0.001, 1000.0);
@@ -44,9 +59,9 @@ var webgl = (function() {
     return gl;
   }
 
-  function initShaders(gl) {
-    var fragmentShader = loadShader(gl, "shader-fs");
-    var vertexShader = loadShader(gl, "shader-vs");
+  function initShaders() {
+    var fragmentShader = loadShader("shader-fs");
+    var vertexShader = loadShader("shader-vs");
 
     var shaderProgram = gl.createProgram();
     gl.attachShader(shaderProgram, vertexShader);
@@ -81,7 +96,7 @@ var webgl = (function() {
     };
   }
 
-  function loadShader(gl, id) {
+  function loadShader(id) {
     var shaderElement = document.getElementById(id);
     var src = shaderElement.text;
     var type;
@@ -113,25 +128,21 @@ var webgl = (function() {
     return shader;
   }
 
-  function initBuffers(
-    gl,
-    polygons,
-    numPolygonVertices,
-    paths,
-    numPathVertices
-  ) {
-    var polygonVertices = getVerticesForPolygons(polygons, numPolygonVertices);
-    var polygonColours = getColoursForPolygons(polygons, numPolygonVertices);
-    var pathVertices = getVerticesForPaths(paths, numPathVertices);
-    var pathColours = getColoursForPaths(paths, numPathVertices);
+  function initBuffers() {
+    polygonVertices = getVerticesForPolygons(polygons, numPolygonVertices);
+    polygonColours = getColoursForPolygons(polygons, numPolygonVertices);
+    pathVertices = getVerticesForPaths(paths, numPathVertices);
+    pathColours = getColoursForPaths(paths, numPathVertices);
+    pointOfInterestVertices = getVerticesForPointsOfInterest(pointsOfInterest);
+    pointOfInterestColours = getColoursForPointsOfInterest(pointsOfInterest);
 
-    vertexArray = new Float32Array((numPolygonVertices + numPathVertices) * 3);
-    vertexArray.set(polygonVertices);
-    vertexArray.set(pathVertices, numPolygonVertices * 3);
+    vertexArray = new Float32Array(
+      (numPolygonVertices + numPathVertices + numPointOfInterestVertices) * 3
+    );
 
-    colourArray = new Float32Array((numPolygonVertices + numPathVertices) * 4);
-    colourArray.set(polygonColours);
-    colourArray.set(pathColours, numPolygonVertices * 4);
+    colourArray = new Float32Array(
+      (numPolygonVertices + numPathVertices + numPointOfInterestVertices) * 4
+    );
 
     var verticesBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
@@ -157,6 +168,21 @@ var webgl = (function() {
     return colours;
   }
 
+  function getColoursForPointsOfInterest(pointsOfInterest) {
+    var numVertices = pointsOfInterest.length * 10;
+    var colours = new Float32Array(numVertices * 4);
+    var colour = [
+      0.9137254901960784,
+      0.11764705882352941,
+      0.38823529411764707,
+      1.0
+    ];
+    for (var i = 0; i < numVertices; i++) {
+      colours.set(colour, i * 4);
+    }
+    return colours;
+  }
+
   function getColoursForPolygons(polygons, numVertices, feature) {
     if (typeof feature !== "string") {
       feature = "biomes";
@@ -173,26 +199,17 @@ var webgl = (function() {
       x += 4;
     }
     for (i = 0; i < polygons.length; i++) {
-      var colour = polygons[i].colour[feature];
+      var polygon = polygons[i];
+      var colour = polygon.colour[feature];
       addVertex(colour);
-      addVertex(colour);
-      addVertex(colour);
-      addVertex(colour);
-
-      for (j = 1; j < polygons[i].length; j += 2) {
+      for (j = 1; j < polygon.length - 1; j += 2) {
         addVertex(colour);
-        if (j + 1 > polygons[i].length - 1) {
-          break;
-        } else {
-          addVertex(colour);
-        }
-        if (j + 2 > polygons[i].length - 1) {
-          break;
-        } else {
-          // Add first point in polygon to as part of constructing the triangle strip.
-          addVertex(colour);
-        }
+        addVertex(colour);
+        addVertex(colour);
       }
+      if (polygon.length % 2 == 0) addVertex(colour);
+      addVertex(colour);
+      addVertex(colour);
     }
     return colours;
   }
@@ -206,14 +223,17 @@ var webgl = (function() {
     return numVertices;
   }
 
-  function countVerticesForPolygons(polygons) {
+  function countVerticesForPolygons(polygons, maxIndex) {
+    if (typeof maxIndex === "undefined") maxIndex = polygons.length;
     var n = 0;
     var vs = 0;
-    for (var i = 0; i < polygons.length; i++) {
+    for (var i = 0; i < maxIndex; i++) {
       var ps = polygons[i].length;
       n += ps;
       // For triangle strip, need to add one extra point for every two points in a polygon, plus two more points for the denegerate triangle.
-      vs += ps + Math.floor(ps / 2) + 3;
+      vs += 3 +
+        (polygons[i].length % 2 + 1) % 2 +
+        Math.floor((polygons[i].length - 1) / 2) * 3;
     }
     return vs;
   }
@@ -268,27 +288,57 @@ var webgl = (function() {
     }
 
     for (i = 0; i < polygons.length; i++) {
-      addVertex(polygons[i][0]);
-      addVertex(polygons[i][0]);
-      for (j = 1; j < polygons[i].length; j += 2) {
-        addVertex(polygons[i][j]);
-
-        if (j + 1 > polygons[i].length - 1) {
-          break;
-        } else {
-          addVertex(polygons[i][j + 1]);
-        }
-
-        if (j + 2 > polygons[i].length - 1) {
-          break;
-        } else {
-          // Add first point in polygon to as part of constructing the triangle strip.
-          addVertex(polygons[i][0]);
-        }
+      var polygon = polygons[i];
+      addVertex(polygon[0]);
+      for (j = 1; j < polygon.length - 1; j += 2) {
+        addVertex(polygon[0]);
+        addVertex(polygon[j]);
+        addVertex(polygon[j + 1]);
       }
+      if (polygon.length % 2 == 0) addVertex(polygon[polygon.length - 1]);
       // Add the same point twice at the end of the polygon to produce degenerate triangles.
-      addVertex(polygons[i][0]);
-      addVertex(polygons[i][0]);
+      addVertex(polygon[0]);
+      addVertex(polygon[0]);
+    }
+    return vertices;
+  }
+
+  function getVerticesForPointsOfInterest(pointsOfInterest) {
+    var x = 0;
+    var vertices = new Float32Array(pointsOfInterest.length * 10 * 3);
+
+    function pointOfInterestStar(poi) {
+      var lon = poi.longitude;
+      var lat = poi.latitude;
+      return [
+        [lon - 1.0, lat + 0.5],
+        [lon + 1.0, lat + 0.5],
+        [lon, lat - 1.0],
+        [lon - 1.0, lat - 0.5],
+        [lon + 1.0, lat - 0.5],
+        [lon, lat + 1.0]
+      ];
+    }
+
+    function addVertex(point) {
+      vertices[x] = point[0];
+      vertices[x + 1] = point[1];
+      vertices[x + 2] = 0.0;
+      x += 3;
+    }
+
+    for (i = 0; i < pointsOfInterest.length; i++) {
+      var star = pointOfInterestStar(pointsOfInterest[i]);
+      addVertex(star[0]);
+      addVertex(star[0]);
+      addVertex(star[1]);
+      addVertex(star[2]);
+      addVertex(star[2]);
+      addVertex(star[3]);
+      addVertex(star[3]);
+      addVertex(star[4]);
+      addVertex(star[5]);
+      addVertex(star[5]);
     }
     return vertices;
   }
@@ -311,20 +361,44 @@ var webgl = (function() {
 
   function updatePolygons(ps) {
     polygons = ps;
+    numPolygonVertices = countVerticesForPolygons(ps);
+    updateBuffers();
+    drawScene();
   }
 
-  function recolour(feature) {
+  function updatePointsOfInterest(ps) {
+    pointsOfInterest = ps;
+    pointOfInterestVertices = getVerticesForPointsOfInterest(pointsOfInterest);
+    pointOfInterestColours = getColoursForPointsOfInterest(pointsOfInterest);
+    numPointOfInterestVertices = ps.length * 10;
+    updateBuffers();
+    drawScene();
+  }
+
+  function recolourPolygon(index, colour, feature) {
+    var colours = getColoursForPolygons(polygons, numPolygonVertices, feature);
+    colourArray.set(colours);
+    var offset = countVerticesForPolygons(polygons, index);
+    var length = countVerticesForPolygons(polygons, index + 1) - offset;
+    for (var i = 0; i < length; i++) {
+      colourArray.set(colour, (offset + i) * 4);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);
+    drawScene();
+  }
+
+  function recolourPolygons(feature) {
     var colours = getColoursForPolygons(polygons, numPolygonVertices, feature);
     colourArray.set(colours);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);
-    windowChanged = true;
     drawScene();
   }
 
   function drawScene() {
     if (!initialized) {
-      console.error("Intialize webgl before using this function.");
       return;
     }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -358,7 +432,11 @@ var webgl = (function() {
         0,
         0
       );
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, numPolygonVertices + numPathVertices);
+      gl.drawArrays(
+        gl.TRIANGLE_STRIP,
+        0,
+        numPolygonVertices + numPathVertices + numPointOfInterestVertices
+      );
     }
   }
 
@@ -407,15 +485,16 @@ var webgl = (function() {
     if (typeof dz === "number") {
       // xpos and ypos should be set such that the current lat,lon is still under ex,ey after the zoom.
       var currentLatLon = getLatLon(ex, ey);
-      var nativeX = (ex - Math.floor(boundingBox.left)) / canvas.width * 2.0 -
-        1.0;
-      var nativeY = -((ey - Math.floor(boundingBox.top)) / canvas.height * 2.0 -
-        1.0);
+
+      var nativeX = ex / width * 2 - 1.0;
+      var nativeY = -(ey / height * 2 - 1.0);
+
       zpos *= 1 + dz / 1000;
       if (zpos > 1.0) {
-        var newScalingFactor = Math.tan(0.125 * Math.PI) * fov / zpos;
-        xpos = nativeX * newScalingFactor * (width / height) - currentLatLon[0];
-        ypos = nativeY * newScalingFactor - currentLatLon[1];
+        var latHeight = Math.tan(0.125 * Math.PI) * fov / zpos;
+        var lonWidth = latHeight * (width / height);
+        xpos = nativeX * lonWidth - currentLatLon[0];
+        ypos = nativeY * latHeight - currentLatLon[1];
       }
     } else if (typeof dx === "number" && typeof dy === "number") {
       dxBuffer += dx;
@@ -429,21 +508,28 @@ var webgl = (function() {
       console.error("Intialize webgl before using this function.");
       return;
     }
-    var nativeX = (ex - Math.floor(boundingBox.left)) / canvas.width * 2.0 -
-      1.0;
-    var nativeY = -((ey - Math.floor(boundingBox.top)) / canvas.height * 2.0 -
-      1.0);
-    var scalingFactor = Math.tan(0.125 * Math.PI) * fov / zpos;
+
+    var latHeight = Math.tan(0.125 * Math.PI) * fov / zpos;
+    var lonWidth = latHeight * (width / height);
+    var nativeX = ex / width * 2 - 1.0;
+    var nativeY = -(ey / height * 2 - 1.0);
     return [
-      (nativeX * scalingFactor * (width / height) - xpos + 180) % 360 - 180,
-      (nativeY * scalingFactor - ypos + 90) % 180 - 90
+      (nativeX * lonWidth - xpos + 180) % 360 - 180,
+      (nativeY * latHeight - ypos + 90) % 180 - 90
     ];
   }
 
-  function initialize(canvasElement, polygonArray, pathArray) {
+  function initialize(canvasElement, polygonArray, pathArray, poiArray) {
     polygons = polygonArray;
     paths = pathArray;
     canvas = canvasElement;
+
+    if (typeof poiArray !== "undefined") {
+      pointsOfInterest = poiArray;
+    } else {
+      pointsOfInterest = [];
+    }
+
     width = canvas.width;
     height = canvas.height;
     boundingBox = canvas.getBoundingClientRect();
@@ -452,18 +538,42 @@ var webgl = (function() {
     numPathVertices = countVerticesForPaths(paths);
 
     gl = initWebGL(canvas);
-    shaders = initShaders(gl);
-    buffers = initBuffers(
-      gl,
-      polygons,
-      numPolygonVertices,
-      paths,
-      numPathVertices
+    shaders = initShaders();
+    buffers = initBuffers();
+    initialized = true;
+    updateBuffers();
+    window.requestAnimationFrame(checkScene);
+  }
+
+  function updateBuffers() {
+    if (!initialized) return;
+
+    vertexArray = new Float32Array(
+      (numPolygonVertices + numPathVertices + numPointOfInterestVertices) * 3
     );
 
-    initialized = true;
+    vertexArray.set(polygonVertices);
+    vertexArray.set(pathVertices, numPolygonVertices * 3);
+    vertexArray.set(
+      pointOfInterestVertices,
+      (numPolygonVertices + numPathVertices) * 3
+    );
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.verticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
 
-    window.requestAnimationFrame(checkScene);
+    colourArray = new Float32Array(
+      (numPolygonVertices + numPathVertices + numPointOfInterestVertices) * 4
+    );
+
+    colourArray.set(polygonColours);
+    colourArray.set(pathColours, numPolygonVertices * 4);
+    colourArray.set(
+      pointOfInterestColours,
+      (numPolygonVertices + numPathVertices) * 4
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);
   }
 
   return {
@@ -473,6 +583,8 @@ var webgl = (function() {
     getLatLon: getLatLon,
     updateViewport: updateViewport,
     updatePolygons: updatePolygons,
-    recolour: recolour
+    updatePointsOfInterest: updatePointsOfInterest,
+    recolourPolygons: recolourPolygons,
+    recolourPolygon: recolourPolygon
   };
 })();
