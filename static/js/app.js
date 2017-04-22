@@ -14,7 +14,7 @@ function sendAction() {
   var req = new XMLHttpRequest();
   req.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      console.log(this.json);
+      console.log(this);
     } else if (this.readyState == 4) {
       console.error(this);
     }
@@ -161,8 +161,8 @@ function addFeaturesToWorld(unsetFeatures) {
   }
 
   world.features = features;
-
-  webgl.updatePolygons(wheeler.getPolygons(world));
+  wheeler.getPolygons(world);
+  webgl.updatePolygons(world.polygons);
   updateColourSelector(features);
 }
 

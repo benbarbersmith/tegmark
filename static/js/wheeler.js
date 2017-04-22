@@ -80,7 +80,6 @@ var wheeler = (function() {
         }
       }
     }
-    console.log(polygons[0]);
     return polygons;
   }
 
