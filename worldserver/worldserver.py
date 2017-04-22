@@ -48,7 +48,7 @@ class ThreadedCommandHandler(SocketServer.StreamRequestHandler):
         try:
             line = self.rfile.readline().decode('utf8')
             self.data = u"{data}".format(data=line)
-            logger.debug(u"Message received from flask websever")
+            # logger.debug(u"Message received from flask webserver")
             # logger.debug(u"Raw data {data}".format(data=self.data))
             world_command = json.loads(self.data, strict=False)
             response = commands.resolve_command(world_command, self.server.global_state_dict, self.server.global_lock)
@@ -59,7 +59,7 @@ class ThreadedCommandHandler(SocketServer.StreamRequestHandler):
             dumped_string = json.dumps(response)
             if len(dumped_string.strip()) > 0:
                 # logger.debug(u"Writing data to socket {data}".format(data=response))
-                logger.debug(u"Sending data back to waiting flask webserver")
+                # logger.debug(u"Sending data back to waiting flask webserver")
                 self.wfile.write(u"{j}\n".format(j=json.dumps(response)))
         else:
             self.wfile.write(response)

@@ -60,29 +60,8 @@ def about_page():
     return Response(json.dumps({'tegmark_version': tegmark_label}), 200, json_headers())
 
 
-@blueprint_api.route('/world/<world_id>', methods=['GET', 'PUT'])
+@blueprint_api.route('/world/<world_id>', methods=['GET'])
 def get_world(world_id=None):
-    if request.method == 'PUT':
-        try:
-            user_data = request.get_json()
-        except Exception as e:
-            return Response(json.dumps({'error': 'Bad Request', 'message': u"Malformed JSON? {}".format(e)}), 400, json_headers())
-        world_update = {}
-        if 'name' in user_data:
-            world_update['name'] = user_data['name']
-        if 'properties' in user_data:
-            world_update['properties'] = user_data['properties']
-        if 'geography' in user_data:
-            world_update['geography'] = user_data['geography']
-
-        result = worldclient.issue_world_command(
-            {'command': 'update_world', 'world_id': world_id, 'update': world_update})
-        print result
-        if result['result'] == 'success':
-            return Response("", 204, json_headers())
-        else:
-            return Response(json.dumps({'error': result.get('error', "Unable to update")}), 422, json_headers())
-
     got_world = worldclient.issue_world_command(
         {'command': 'get_world', 'world_id': world_id})
     if got_world['result'] == 'success':
@@ -91,41 +70,30 @@ def get_world(world_id=None):
         return Response(json.dumps(got_world), 404, json_headers())
 
 
+@blueprint_api.route('/world/<world_id>/structures', methods=['GET'])
+def get_world_structures(world_id=None):
+    got_world_structures = worldclient.issue_world_command(
+        {'command': 'get_world_structures', 'world_id': world_id})
+    if type(got_world_structures) is not dict:
+        return Response(got_world_structures, 200, binary_headers())
+    else:
+        return Response(json.dumps(got_world_structures), 404, json_headers())
+
+
 @blueprint_api.route('/world/<world_id>/features', methods=['GET'])
 def get_world_features(world_id=None):
     got_world_features = worldclient.issue_world_command(
         {'command': 'get_world_features', 'world_id': world_id})
-    if type(got_world_features) is not dict:
-        return Response(got_world_features, 200, binary_headers())
+    if got_world_features['result'] == 'success':
+        return Response(json.dumps(got_world_features), 200, json_headers())
     else:
         return Response(json.dumps(got_world_features), 404, json_headers())
 
 
-@blueprint_api.route('/world/<world_id>/feature_properties', methods=['GET'])
-def get_world_feature_properties(world_id=None):
-    got_world_feature_properties = worldclient.issue_world_command(
-        {'command': 'get_world_feature_properties', 'world_id': world_id})
-    if got_world_feature_properties['result'] == 'success':
-        return Response(json.dumps(got_world_feature_properties), 200, json_headers())
-    else:
-        return Response(json.dumps(got_world_feature_properties), 404, json_headers())
-
-
-@blueprint_api.route('/world/<world_id>/cell/<float:lon>,<float:lat>')
-def get_world_cell(world_id=None, lat=0.0, lon=0.0):
-    return Response(json.dumps(worldclient.issue_world_command({'command': 'get_world_cell', 'world_id': world_id, 'lat': lat, 'lon': lon})), 200, json_headers())
-
-
-@blueprint_api.route('/worlds/', methods=['GET', 'POST'])
+@blueprint_api.route('/worlds/', methods=['GET'])
 def worlds():
-    if request.method == 'POST':
-        world = worldclient.issue_world_command(
-            {'command': 'create_new_world'})
-        return Response(json.dumps({'world_id': world['world_id'],
-                                    'uri': url_for('worlds.get_world', world_id=world['world_id'])}), 202, json_headers())
-    else:  # if request.method == 'GET':
-        current_worlds = worldclient.issue_world_command(
-            {'command': 'list_worlds'})
-        worlds_list = [{'world_id': world_id, 'name': world.get('name', 'Hepatitis'),
-                        'uri': url_for('worlds.get_world', world_id=world_id)} for world_id, world in current_worlds['worlds'].iteritems()]
-        return Response(json.dumps(worlds_list), 200, json_headers())
+    current_worlds = worldclient.issue_world_command(
+        {'command': 'list_worlds'})
+    worlds_list = [{'world_id': world_id, 'name': world.get('name', 'Unnamed world'),
+                    'uri': url_for('worlds.get_world', world_id=world_id)} for world_id, world in current_worlds['worlds'].iteritems()]
+    return Response(json.dumps(worlds_list), 200, json_headers())

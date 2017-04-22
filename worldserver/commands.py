@@ -10,24 +10,27 @@ from threading import Thread
 import generation
 
 
-world_id_regex = re.compile("[a-f0-9]{8}")
+world_id_regex = re.compile("[0-9]+")
 
 
 class WorldHolder(object):
-    def __init__(self, id, name, properties={}):
+    def __init__(self, id, name):
         self._id = id
-        self._properties = properties
         self._name = name
+        self._structures = None
         self._features = None
-        self._feature_properties = None
         self._everett = None
 
     @property
     def status(self):
-        if self._features is None:
+        if self._structures is None:
             return "generating"
         else:
             return "complete"
+
+    @property
+    def id(self):
+        return self._id
 
     @property
     def name(self):
@@ -38,28 +41,20 @@ class WorldHolder(object):
         self._name = name
 
     @property
-    def properties(self):
-        return self._properties.copy()
+    def structures(self):
+        return self._structures
 
-    @properties.setter
-    def properties(self, properties):
-        self._properties = {key: value for key, value in properties.iteritems()}  # and fail if it's not dict like
+    @structures.setter
+    def structures(self, structures):
+        self._structures = structures
 
     @property
     def features(self):
-        return self._features
+        return self._features.copy()
 
     @features.setter
     def features(self, features):
         self._features = features
-
-    @property
-    def feature_properties(self):
-        return self._feature_properties.copy()
-
-    @feature_properties.setter
-    def feature_properties(self, feature_properties):
-        self._feature_properties = feature_properties
 
     @property
     def everett(self):
@@ -71,25 +66,13 @@ class WorldHolder(object):
 
     def __dict__(self):
         return {
-            'name' : self._name,
-            'properties' : self._properties,
-            'status' : self.status
+            'id': self._id,
+            'name': self._name,
+            'status': self.status
         }
 
     def iteritems(self):
         return self.__dict__().iteritems()
-
-
-def json_safe_world(w):
-    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'status']}
-
-
-def list_safe_world(w):
-    return {key: value for key, value in w.iteritems() if key in ['properties', 'name', 'status']}
-
-
-def json_safe_cell(world_id, c):
-    return {'world_id' : world_id, 'cell_id' : [c.centre.lon, c.centre.lat], 'boundary_points' : [{'boundary_id' : [b.lon, b.lat], 'altitude' : b.alt} for b in c.nodes]}
 
 
 def resolve_command(command, global_state_dict, global_lock):
@@ -100,104 +83,98 @@ def resolve_command(command, global_state_dict, global_lock):
     :return: a dict that can be passed to JSON.dumps()
     """
 
-    if 'command' in command:
-        if command['command'] == 'create_new_world':
-            if "world_id" in command and world_id_regex.match(command["world_id"]) is not None:
-                new_world_id = command["world_id"]
-            else:
-                new_world_id = "{:08x}".format(random.getrandbits(32))
-            n = "World {}".format(int(new_world_id, 16))
-            global_lock.acquire()
-            global_state_dict[new_world_id] = WorldHolder(new_world_id, n)
-            global_lock.release()
-            g_thread = Thread(target=generation.add_world, args=(new_world_id, global_state_dict, global_lock))
-            g_thread.start()
-            return {'result' : 'success', 'world_id' : new_world_id, 'world' : json_safe_world(global_state_dict[new_world_id])}
-        elif command['command'] == 'list_worlds':
-            return {'result' : 'success', 'worlds': {world_id: list_safe_world(world) for world_id, world in global_state_dict.iteritems()}}
-        elif command['command'] == 'get_world':
-            world_id = command.get('world_id', None)
-            if world_id is None:
-                return {'result' : 'error', 'error' : 'must specify world_id'}
-            elif world_id == "sample":
-                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(sample_world)}
-            elif world_id not in global_state_dict:
-                if world_id_regex.match(world_id) is not None:
-                    return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            else:
-                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_world(global_state_dict[world_id])}
-        elif command['command'] == 'get_world_features':
-            world_id = command.get('world_id', None)
-            if world_id is None:
-                return {'result' : 'error', 'error' : 'must specify world_id'}
-            elif world_id not in global_state_dict:
-                if world_id_regex.match(world_id) is not None:
-                    return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            elif global_state_dict[world_id].status != "complete":
-                return {'result' : 'error', 'error' : 'world is still generating'}
-            else:
-                return global_state_dict[world_id].features
-        elif command['command'] == 'get_world_feature_properties':
-            world_id = command.get('world_id', None)
-            if world_id is None:
-                return {'result' : 'error', 'error' : 'must specify world_id'}
-            elif world_id not in global_state_dict:
-                if world_id_regex.match(world_id) is not None:
-                    return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            elif global_state_dict[world_id].status != "complete":
-                return {'result' : 'error', 'error' : 'world is still generating'}
-            else:
-                return {'result' : 'success', 'feature_properties': global_state_dict[world_id].feature_properties}
-        elif command['command'] == 'update_world':
-            world_id = command.get('world_id', None)
-            if world_id is None:
-                return {'result' : 'error', 'error' : 'must specify world_id'}
-            elif world_id not in global_state_dict:
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            if 'update' not in command:
-                return {'result' : 'error', 'error' : "nothing to update!"}
-            result = {'result' : 'error', 'error' : "unable to update!"}
-            try:
-                global_lock.acquire()
-                if 'properties' in command['update']:
-                    global_state_dict[world_id].properties = command['update']['properties']
-                if 'name' in command['update']:
-                    global_state_dict[world_id].name = command['update']['name']
-                # if 'topography' in command['update']:
-                #    global_state_dict[world_id].everett.create_altitude_chains(command['update']['topography'])
-                result = {'result' : 'success'}
-            finally:
-                global_lock.release()
-            return result
-        elif command['command'] == 'get_world_cell':
-            world_id = command.get('world_id', None)
-            lat = command.get('lat', None)
-            lon = command.get('lon', None)
-            if world_id is None or lat is None or lon is None:
-                return {'result' : 'error', 'error' : 'must specify world_id, lat and lon'}
-            elif world_id not in global_state_dict:
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            else:
-                try:
-                    cell = global_state_dict[world_id].everett.cells_by_centre_loc.get(tuple((lon, lat)))
-                except KeyError as e:
-                    return {'result' : 'error', 'error' : "world {} has not finished generating!".format(world_id)}
-                if cell is None:
-                    return {'result' : 'error', 'error' : "cell at ({},{}) in world {} doesn't exist".format(lon, lat, world_id)}
-                return {'result' : 'success', 'world_id' : world_id, 'world' : json_safe_cell(world_id, cell)}
-        elif command['command'] == 'delete_world':
-            world_id = command.get('world_id', None)
-            if world_id is None:
-                return {'result' : 'error', 'error' : 'must specify world_id'}
-            elif world_id not in global_state_dict:
-                return {'result' : 'error', 'error' : "world {} doesn't exist".format(world_id)}
-            else:
-                global_lock.acquire()
-                del global_state_dict[world_id]
-                global_lock.release()
-                return {'result' : 'success', 'world_id' : world_id, 'world' : None}
+    def safe_world(w):
+        return {key: value for key, value in w.iteritems() if key in ['id', 'name', 'status']}
+
+    def world_response(world_id):
+        return {'result': 'success', 'world': safe_world(global_state_dict[world_id])}
+
+    def error_response(error_text):
+        return {'result': 'error', 'error': error_text}
+
+    if 'command' not in command:
+        return error_response('???')
+
+    if command['command'] == 'list_worlds':
+        return {'result': 'success', 'worlds': [safe_world(world) for world_id, world in global_state_dict.iteritems()]}
+
+    if command['command'] == 'create_new_world':
+        if "world_id" in command and world_id_regex.match(command["world_id"]) is not None:
+            new_world_id = command["world_id"]
         else:
-            return {'result' : 'error', 'error' : '???'}
+            new_world_id = "{}".format(random.getrandbits(32))
+        n = "World {}".format(new_world_id)
+        global_lock.acquire()
+        global_state_dict[new_world_id] = WorldHolder(new_world_id, n)
+        global_lock.release()
+        g_thread = Thread(target=generation.add_world, args=(
+            new_world_id, global_state_dict, global_lock))
+        g_thread.start()
+        return world_response(new_world_id)
+
+    if command['command'] == 'get_world':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
+        else:
+            return world_response(world_id)
+
+    if command['command'] == 'get_world_structures':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
+        elif global_state_dict[world_id].status != "complete":
+            return error_response('world is still generating')
+        else:
+            return global_state_dict[world_id].structures
+
+    if command['command'] == 'get_world_features':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
+        elif global_state_dict[world_id].status != "complete":
+            return error_response('world is still generating')
+        else:
+            return {'result': 'success', 'features': global_state_dict[world_id].features}
+
+    if command['command'] == 'update_world':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return error_response("world {} doesn't exist".format(world_id))
+        if 'update' not in command:
+            return error_response("nothing to update!")
+
+        try:
+            global_lock.acquire()
+            if 'properties' in command['update']:
+                global_state_dict[world_id].properties = command['update']['properties']
+            if 'name' in command['update']:
+                global_state_dict[world_id].name = command['update']['name']
+            # if 'topography' in command['update']:
+            #    global_state_dict[world_id].everett.create_altitude_chains(command['update']['topography'])
+            result = {'result': 'success'}
+        finally:
+            global_lock.release()
+        return result
+
+    if command['command'] == 'delete_world':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return error_response("world {} doesn't exist".format(world_id))
+        else:
+            global_lock.acquire()
+            del global_state_dict[world_id]
+            global_lock.release()
+            return {'result': 'success', 'world_id': world_id, 'world': None}
+
+    return {'result': 'error', 'error': '???'}

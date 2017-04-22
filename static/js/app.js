@@ -3,7 +3,7 @@ var isDown = false;
 var world = {};
 
 window.onload = function() {
-  if (typeof worldId === "undefined") worldId = "00000075";
+  if (typeof worldId === "undefined") worldId = "1";
   getWorld(worldId);
 };
 
@@ -37,7 +37,7 @@ function getWorld(worldId) {
 
   var interval;
   function pollForWorld() {
-    console.log("Polling for world");
+    console.log("Polling for world " + worldId);
     getResource(
       "http://127.0.0.1:15000/api/world/" + worldId,
       "json",
@@ -50,13 +50,12 @@ function getWorld(worldId) {
         } else {
           if (json.world.status == "complete") {
             world = json.world;
-            world.id = worldId;
             clearInterval(interval);
-            setStatusOverlay("Rendering world " + worldId);
+            setStatusOverlay("Rendering " + world.name);
             getWorldFeatures();
           } else {
             setStatusOverlay(
-              "World " + worldId + " is " + world.status + "..."
+              json.world.name + " is " + json.world.status + "..."
             );
           }
         }
@@ -64,19 +63,19 @@ function getWorld(worldId) {
       console.error
     );
   }
-  interval = setInterval(pollForWorld, 500);
+  interval = setInterval(pollForWorld, 1000);
 }
 
 function getWorldFeatures() {
   getResource(
-    "http://127.0.0.1:15000/api/world/" + world.id + "/features",
+    "http://127.0.0.1:15000/api/world/" + world.id + "/structures",
     "arraybuffer",
     "response",
     buildWorld,
     console.error
   );
   getResource(
-    "http://127.0.0.1:15000/api/world/" + world.id + "/feature_properties",
+    "http://127.0.0.1:15000/api/world/" + world.id + "/features",
     "json",
     "response",
     mergePropertiesIntoWorld,
@@ -87,41 +86,41 @@ function getWorldFeatures() {
 function mergePropertiesIntoWorld(json) {
   var properties = {};
   if (
-    world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("properties")
+    world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("features")
   ) {
     return;
   } else if (world.hasOwnProperty("cells")) {
-    for (var i = 0; i < json.feature_properties.cells.length; i++) {
-      world.cells[i].properties = json.feature_properties.cells[i];
-      var propertyKeys = Object.keys(world.cells[i].properties);
-      for (var j = 0; j < propertyKeys.length; j++) {
-        var key = propertyKeys[j];
-        var propertyMinMax = properties[key];
-        if (typeof propertyMinMax === "undefined") {
-          propertyMinMax = { name: key, min: 0.0, max: 0.0 };
+    for (var i = 0; i < json.features.cells.length; i++) {
+      world.cells[i].features = json.features.cells[i];
+      var featureKeys = Object.keys(world.cells[i].features);
+      for (var j = 0; j < featureKeys.length; j++) {
+        var key = featureKeys[j];
+        var featureMinMax = properties[key];
+        if (typeof featureMinMax === "undefined") {
+          featureMinMax = { name: key, min: 0.0, max: 0.0 };
         }
-        if (propertyMinMax.min > world.cells[i].properties[key])
-          propertyMinMax.min = world.cells[i].properties[key];
-        if (propertyMinMax.max < world.cells[i].properties[key])
-          propertyMinMax.max = world.cells[i].properties[key];
-        properties[key] = propertyMinMax;
+        if (featureMinMax.min > world.cells[i].properties[key])
+          featureMinMax.min = world.cells[i].properties[key];
+        if (featureMinMax.max < world.cells[i].properties[key])
+          featureMinMax.max = world.cells[i].properties[key];
+        properties[key] = featureMinMax;
       }
     }
-    var propertyKeys = Object.keys(properties);
-    for (var i = 0; i < propertyKeys.length; i++) {
-      var property = properties[propertyKeys[i]];
-      property.colour = colourmaps.getMap("chloropleth", {
+    var featureKeys = Object.keys(properties);
+    for (var i = 0; i < featureKeys.length; i++) {
+      var feature = features[featureKeys[i]];
+      feature.colour = colourmaps.getMap("chloropleth", {
         buckets: 50,
         min: property.min,
         max: property.max
       });
-      properties[propertyKeys[i]] = property;
+      features[featureKeys[i]] = feature;
     }
-    updateColourSelector(properties, propertyKeys);
-    world.properties = properties;
+    updateColourSelector(features, featureKeys);
+    world.features = features;
     console.log("Startup time: " + (new Date() - start) + " ms");
   } else {
-    world.feature_properties = json.feature_properties;
+    world.features = json.features;
   }
 }
 
@@ -136,11 +135,11 @@ function buildWorld(response) {
   webgl.initialize(canvas, polygons, world.cells);
   console.log("First render: " + (new Date() - start) + " ms");
 
-  if (world.hasOwnProperty("feature_properties")) {
+  if (world.hasOwnProperty("features")) {
     for (var i = 0; i < world.cells.length; i++) {
-      world.cells[i].properties = world.feature_properties.cells[i];
+      world.cells[i].features = world.features.cells[i];
     }
-    delete world.feature_properties;
+    delete world.features;
   }
 
   setStatusOverlay("World " + world.id + " is ready to explore!");
