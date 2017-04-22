@@ -128,7 +128,7 @@ var webgl = (function() {
     };
   }
 
-  function getColours(polygons, numVertices, property) {
+  function getColours(polygons, numVertices, feature) {
     var x = 0;
     var colourFunction;
     var value;
@@ -143,16 +143,16 @@ var webgl = (function() {
       x += 4;
     }
     if (
-      typeof property !== "object" ||
-      !property.hasOwnProperty("name") ||
-      !property.hasOwnProperty("colour")
+      typeof feature !== "object" ||
+      !feature.hasOwnProperty("name") ||
+      !feature.hasOwnProperty("colour")
     ) {
       colourFunction = function(i) {
         return polygons[i].colour;
       };
     } else {
-      colourFunction = property.colour;
-      key = property.name;
+      colourFunction = feature.colour;
+      key = feature.name;
     }
     for (i = 0; i < polygons.length; i++) {
       if (typeof key !== "string") {
@@ -164,12 +164,12 @@ var webgl = (function() {
         }
         if (
           idx < cells.length &&
-          cells[idx].hasOwnProperty("properties") &&
-          cells[idx].properties.hasOwnProperty(key)
+          cells[idx].hasOwnProperty("features") &&
+          cells[idx].features.hasOwnProperty(key)
         ) {
-          value = cells[idx].properties[key];
+          value = cells[idx].features[key];
         } else {
-          value = property.min;
+          value = feature.min;
         }
       }
       var colour = colourFunction(value);

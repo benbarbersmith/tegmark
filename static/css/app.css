@@ -34,7 +34,7 @@ pre, p {
   z-index: 100;
 }
 
-#properties {
+#features {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -44,7 +44,6 @@ pre, p {
   border: 0px;
   border-radius: 0px;
   z-index: 100;
-  display: none;
 }
 
 #overlay {

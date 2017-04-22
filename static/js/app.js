@@ -84,7 +84,7 @@ function getWorldFeatures() {
 }
 
 function mergePropertiesIntoWorld(json) {
-  var properties = {};
+  var features = {};
   if (
     world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("features")
   ) {
@@ -95,24 +95,23 @@ function mergePropertiesIntoWorld(json) {
       var featureKeys = Object.keys(world.cells[i].features);
       for (var j = 0; j < featureKeys.length; j++) {
         var key = featureKeys[j];
-        var featureMinMax = properties[key];
+        var featureMinMax = features[key];
         if (typeof featureMinMax === "undefined") {
           featureMinMax = { name: key, min: 0.0, max: 0.0 };
         }
-        if (featureMinMax.min > world.cells[i].properties[key])
-          featureMinMax.min = world.cells[i].properties[key];
-        if (featureMinMax.max < world.cells[i].properties[key])
-          featureMinMax.max = world.cells[i].properties[key];
-        properties[key] = featureMinMax;
+        var value = world.cells[i].features[key];
+        if (featureMinMax.min > value) featureMinMax.min = value;
+        if (featureMinMax.max < value) featureMinMax.max = value;
+        features[key] = featureMinMax;
       }
     }
-    var featureKeys = Object.keys(properties);
+    var featureKeys = Object.keys(features);
     for (var i = 0; i < featureKeys.length; i++) {
       var feature = features[featureKeys[i]];
       feature.colour = colourmaps.getMap("chloropleth", {
         buckets: 50,
-        min: property.min,
-        max: property.max
+        min: feature.min,
+        max: feature.max
       });
       features[featureKeys[i]] = feature;
     }
@@ -336,12 +335,12 @@ function updateHud(polygons, cells) {
       lon.toFixed(6) +
       ")";
     var altElement = document.getElementById("altitudeOverlay");
-    if (cells[i] && cells[i].hasOwnProperty("properties")) {
+    if (cells[i] && cells[i].hasOwnProperty("features")) {
       altElement.innerHTML = "Alt: " +
-        cells[i].properties.terrain_altitude.toFixed(2);
+        cells[i].features.terrain_altitude.toFixed(2);
     }
-    if (cells[i] && cells[i].hasOwnProperty("properties")) {
-      var propsElement = document.getElementById("properties");
+    if (cells[i] && cells[i].hasOwnProperty("features")) {
+      var featuresElement = document.getElementById("features");
       var c = "rgb(" +
         colours[cells[i].colour][0] +
         "," +
@@ -349,10 +348,10 @@ function updateHud(polygons, cells) {
         "," +
         colours[cells[i].colour][2] +
         ")";
-      //propsElement.innerHTML = JSON.stringify(cells[i].properties, null, 2);
+      featuresElement.innerHTML = JSON.stringify(cells[i].features, null, 2);
       latlonElement.style.color = c;
       altElement.style.color = c;
-      //propsElement.style.color = c;
+      featuresElement.style.color = c;
     }
   };
 }
@@ -363,15 +362,14 @@ function keyToReadableValue(key) {
   return key;
 }
 
-function updateColourSelector(properties, keys) {
+function updateColourSelector(features, keys) {
   var colourmaps = document.getElementById("colourmapSelect");
   while (colourmaps.children.length > 1) {
     colourmaps.removeChild(colourmaps.lastChild);
   }
   colourmaps.onchange = function(e) {
-    var property;
     if (e.srcElement.value !== "default") {
-      webgl.recolour(properties[e.srcElement.value]);
+      webgl.recolour(features[e.srcElement.value]);
     } else {
       webgl.recolour();
     }
