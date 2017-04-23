@@ -6,8 +6,10 @@ everett worlds kept in memory
 import json
 import random
 import re
+from pprint import pprint
 from threading import Thread
-
+from deepdiff import DeepDiff
+from everett.export import wheeler
 import generation
 
 
@@ -180,10 +182,18 @@ def resolve_command(command, global_state_dict, global_lock):
                 if "lon" not in details or "lat" not in details:
                     error_response("'build_settlement' action requires lat and lon")
                 world = global_state_dict[world_id].everett;
+
                 from everett.pointsofinterest.settlement import Settlement
+
+                global_lock.acquire()
                 poi = Settlement(world, details["lon"], details["lat"], 1, 1)
-                global_state_dict[world_id].points_of_interest.append(poi.__dict__())
-                result = {'result': 'success', 'point_of_interest': poi.__dict__()}
+                (features, points_of_interest) = wheeler.metadata(world)
+                features_diff = DeepDiff(global_state_dict[world_id].features, features, verbose_level=2, ignore_order=False)
+                global_state_dict[world_id].features = features;
+                points_of_interest_diff = DeepDiff(global_state_dict[world_id].points_of_interest, points_of_interest, verbose_level=2, ignore_order=False)
+                global_state_dict[world_id].points_of_interest = points_of_interest
+                global_lock.release()
+                result = {'result': 'success', 'diffs': {'features': features_diff, 'points_of_interest': points_of_interest_diff}}
             else:
                 error_response("no action, or action unrecognised")
         finally:

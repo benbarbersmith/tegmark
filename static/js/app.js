@@ -35,7 +35,7 @@ function sendAction(action, successCallback) {
   var req = new XMLHttpRequest();
   req.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      successCallback(this.response);
+      updateFromDiff(this.response);
     } else if (this.readyState == 4) {
       console.error(this);
     }
@@ -53,9 +53,7 @@ function buildSettlement(lon, lat) {
       lat: lat
     }
   };
-  sendAction(action, function(json) {
-    mergePointsOfInterestIntoWorld([json.point_of_interest]);
-  });
+  sendAction(action);
 }
 
 function getResource(
@@ -141,6 +139,61 @@ function getWorldFeatures() {
     },
     console.error
   );
+}
+
+function updateFromDiff(json) {
+  diff = json.diffs;
+  function processDiff(diffKey, worldKey) {
+    if (typeof worldKey === "undefined") worldKey = diffKey;
+    var added = diff[diffKey].hasOwnProperty("iterable_item_added")
+      ? diff[diffKey]["iterable_item_added"]
+      : {};
+    var addedKeys = Object.keys(added);
+    for (var i = 0; i < addedKeys.length; i++) {
+      world.pointsOfInterest.push(added[addedKeys[i]]);
+    }
+    var removed = diff[diffKey].hasOwnProperty("iterable_item_removed")
+      ? diff[diffKey]["iterable_item_removed"]
+      : {};
+    var removedKeys = Object.keys(added);
+    for (var i = 0; i < removedKeys.length; i++) {
+      var matches = /\[(\d+)\]/g.exec(removedKeys[i]);
+      index = matches[1];
+      world[worldKey].splice(index, 1);
+    }
+    var changed = diff[diffKey].hasOwnProperty("values_changed")
+      ? diff[diffKey]["values_changed"]
+      : {};
+    var changedKeys = Object.keys(changed);
+    for (var i = 0; i < changedKeys.length; i++) {
+      var matches = changedKeys[i].split("][").slice(1);
+      matches[matches.length - 1] = matches[matches.length - 1].slice(
+        0,
+        matches[matches.length - 1].length - 2
+      );
+      ptr = world.cells[matches[0]];
+      for (var i = 1; i < matches.length; i++) {
+        ptr = ptr[matches[i]];
+      }
+      console.log(ptr);
+    }
+    /**
+    for (var i = 0; i < changedKeys.length; i++) {
+      var matches = /\[(\d+)\]/g.exec(changedKey[i]);
+      index = matches[1];
+      world[worldKey].splice(index, 1);
+    }
+    **/
+  }
+  console.log(JSON.stringify(diff, null, 2));
+  if (diff.hasOwnProperty("points_of_interest")) {
+    processDiff("points_of_interest", "pointsOfInterest");
+    webgl.updatePointsOfInterest(world.pointsOfInterest);
+  }
+  if (diff.hasOwnProperty("features")) {
+    processDiff("features", "bob");
+    //webgl.updatePointsOfInterest(world.pointsOfInterest);
+  }
 }
 
 function addFeaturesToWorld(unsetFeatures) {
@@ -362,7 +415,7 @@ function updateHud(e) {
 }
 
 function updateColourSelector(features) {
-  var keys = Object.keys(features);
+  var keys = Object.keys(features).sort();
   var colourmaps = document.getElementById("colourmapSelect");
   while (colourmaps.children.length > 1) {
     colourmaps.removeChild(colourmaps.lastChild);
