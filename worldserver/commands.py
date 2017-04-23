@@ -183,7 +183,7 @@ def resolve_command(command, global_state_dict, global_lock):
                 from everett.pointsofinterest.settlement import Settlement
                 poi = Settlement(world, details["lon"], details["lat"], 1, 1)
                 global_state_dict[world_id].points_of_interest.append(poi.__dict__())
-                result = {'result': 'success', 'point_of_interest': json.dumps(poi.__dict__())}
+                result = {'result': 'success', 'point_of_interest': poi.__dict__()}
             else:
                 error_response("no action, or action unrecognised")
         finally:

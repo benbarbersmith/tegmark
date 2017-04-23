@@ -44,8 +44,7 @@ function buildSettlement(lon, lat) {
     }
   };
   sendAction(action, function(json) {
-    world.pointsOfInterest.push(JSON.parse(json.point_of_interest));
-    webgl.updatePointsOfInterest(world.pointsOfInterest);
+    mergePointsOfInterestIntoWorld([json.point_of_interest]);
   });
 }
 
@@ -128,8 +127,7 @@ function getWorldFeatures() {
     "json",
     "response",
     function(json) {
-      world.pointsOfInterest = json.points_of_interest;
-      webgl.updatePointsOfInterest(world.pointsOfInterest);
+      mergePointsOfInterestIntoWorld(json.points_of_interest);
     },
     console.error
   );
@@ -173,6 +171,37 @@ function addFeaturesToWorld(unsetFeatures) {
   updateColourSelector(features);
 }
 
+function associatePointOfInterest(poi) {
+  index = getCellByCoords(poi.longitude, poi.latitude);
+  if (world.cells[index].hasOwnProperty("pointsOfInterest")) {
+    world.cells[index].pointsOfInterest.push(poi);
+  } else {
+    world.cells[index].pointsOfInterest = [poi];
+  }
+}
+
+function mergePointsOfInterestIntoWorld(pois) {
+  if (world.hasOwnProperty("polygons")) {
+    if (world.hasOwnProperty("pointsOfInterest")) {
+      world.pointsOfInterest = world.pointsOfInterest.concat(pois);
+    } else {
+      world.pointsOfInterest = pois;
+    }
+
+    for (var i = 0; i < pois.length; i++) {
+      var poi = pois[i];
+      associatePointOfInterest(poi);
+    }
+  } else {
+    if (world.hasOwnProperty("unattachedPointsOfInterest")) {
+      world.unattachedPointsOfInterest.concat(pois);
+    } else {
+      world.unattachedPointsOfInterest = pois;
+    }
+  }
+  webgl.updatePointsOfInterest(world.pointsOfInterest);
+}
+
 function mergeFeaturesIntoWorld(json) {
   if (
     world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("features")
@@ -197,9 +226,9 @@ function buildWorld(response) {
     addFeaturesToWorld(world.unsetFeatures);
     delete world.unsetFeatures;
   }
-  if (world.hasOwnProperty("unsetPointsOfInterest")) {
-    addPointsOfInterestToWorld(world.unsetPointsOfInterest);
-    delete world.unsetPointsOfInterest;
+  if (world.hasOwnProperty("unattachedPointsOfInterest")) {
+    mergePointsOfInterestIntoWorld(world.unattachedPointsOfInterest);
+    delete world.unattachedPointsOfInterest;
   }
   renderWorld();
 }
@@ -301,10 +330,22 @@ function updateHud(e) {
     webgl.recolourPolygon(index, colour, feature);
   }
 
-  /**
-  if (cell && cell.hasOwnProperty("features")) {
-    var featuresElement = document.getElementById("features");
-    featuresElement.innerHTML = JSON.stringify(cell.features, null, 2);
+  var featuresElement = document.getElementById("features");
+  if (cell && cell.hasOwnProperty("pointsOfInterest")) {
+    featuresElement.innerHTML = "PoIs in cell: ";
+    featuresElement.innerHTML += cell.pointsOfInterest[0].name.slice(
+      cell.pointsOfInterest[0].name.length - 17,
+      cell.pointsOfInterest[0].name.length - 1
+    );
+    for (var i = 1; i < cell.pointsOfInterest.length; i++) {
+      featuresElement.innerHTML += ", " +
+        cell.pointsOfInterest[i].name.slice(
+          cell.pointsOfInterest[i].name.length - 17,
+          cell.pointsOfInterest[0].name.length - 1
+        );
+    }
+    featuresElement.style.display = "block";
+    /**
     var c = "rgb(" +
       world.colours[cell.colour][0] +
       "," +
@@ -314,8 +355,11 @@ function updateHud(e) {
       ")";
     latlonElement.style.color = c;
     featuresElement.style.color = c;
+    **/
+  } else {
+    featuresElement.style.display = "none";
+    featuresElement.innerHTML = "";
   }
-  **/
 }
 
 function updateColourSelector(features) {

@@ -44,10 +44,9 @@ pre, p {
     position: absolute;
     bottom: 0;
     right: 0;
-    padding: 1em;
     margin: 0em;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: rgba(1, 1, 1, 0.5)
+    padding: 0.5em;
+    background-color: rgba(0, 0, 0, 1);
     border: 0px;
     border-radius: 0px;
     z-index: 100;
