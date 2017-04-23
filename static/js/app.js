@@ -4,7 +4,17 @@ var isDown = false;
 var feature = "biomes";
 var mode = "";
 
-const server = "http://localhost:15000/api/world/";
+const server = "http://" +
+  window.location.hostname +
+  ":" +
+  window.location.port +
+  "/api/world/";
+
+/**
+var socket = new WebSocket(
+  "ws://" + window.location.hostname + ":" + window.location.port + "/api"
+);
+**/
 
 window.onload = function() {
   if (typeof worldId === "undefined") worldId = "1";
@@ -159,6 +169,11 @@ function addFeaturesToWorld(unsetFeatures) {
       max: feature.max
     });
     features[featureKeys[i]] = feature;
+    for (var j = 0; j < world.cells.length; j++) {
+      if (!world.cells[j].features.hasOwnProperty(featureKeys[i])) {
+        world.cells[j].features[featureKeys[i]] = feature.min;
+      }
+    }
   }
 
   for (var i = 0; i < unsetFeatures.paths.length; i++) {
@@ -331,34 +346,18 @@ function updateHud(e) {
   }
 
   var featuresElement = document.getElementById("features");
-  if (cell && cell.hasOwnProperty("pointsOfInterest")) {
-    featuresElement.innerHTML = "PoIs in cell: ";
-    featuresElement.innerHTML += cell.pointsOfInterest[0].name.slice(
-      cell.pointsOfInterest[0].name.length - 17,
-      cell.pointsOfInterest[0].name.length - 1
-    );
-    for (var i = 1; i < cell.pointsOfInterest.length; i++) {
-      featuresElement.innerHTML += ", " +
-        cell.pointsOfInterest[i].name.slice(
-          cell.pointsOfInterest[i].name.length - 17,
-          cell.pointsOfInterest[0].name.length - 1
-        );
+  if (cell) {
+    unescapedText = JSON.stringify(cell.features, null, 2);
+    if (cell.hasOwnProperty("pointsOfInterest")) {
+      unescapedText += "\nPoIs in cell: ";
+      unescapedText += cell.pointsOfInterest[0].name;
+      for (var i = 1; i < cell.pointsOfInterest.length; i++) {
+        unescapedText += ", " + cell.pointsOfInterest[i].name;
+      }
     }
-    featuresElement.style.display = "block";
-    /**
-    var c = "rgb(" +
-      world.colours[cell.colour][0] +
-      "," +
-      world.colours[cell.colour][1] +
-      "," +
-      world.colours[cell.colour][2] +
-      ")";
-    latlonElement.style.color = c;
-    featuresElement.style.color = c;
-    **/
-  } else {
-    featuresElement.style.display = "none";
+    var text = document.createTextNode(unescapedText);
     featuresElement.innerHTML = "";
+    featuresElement.appendChild(text);
   }
 }
 
@@ -382,7 +381,7 @@ function updateColourSelector(features) {
 }
 
 function keyToReadableValue(key) {
-  key = key.replace("_", " ");
+  key = key.split("_").join(" : ");
   key = key[0].toUpperCase() + key.slice(1);
   return key;
 }
