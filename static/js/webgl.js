@@ -254,8 +254,8 @@ var webgl = (function() {
       var dy = p1[1] - p0[1];
       var normal = [-dy, dx];
 
-      p0mod = [p0[0] + 0.2 * normal[0], p0[1] + 0.2 * normal[1], p0[2]];
-      p1mod = [p1[0] + 0.2 * normal[0], p1[1] + 0.2 * normal[1], p1[2]];
+      p0mod = [p0[0] + 0.1 * normal[0], p0[1] + 0.05 * normal[1], p0[2]];
+      p1mod = [p1[0] + 0.1 * normal[0], p1[1] + 0.05 * normal[1], p1[2]];
 
       addVertex(p0);
       addVertex(p0mod);
