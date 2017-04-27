@@ -170,7 +170,7 @@ function addFeaturesToWorld(unsetFeatures) {
   var featureKeys = Object.keys(features);
   for (var i = 0; i < featureKeys.length; i++) {
     var feature = features[featureKeys[i]];
-    feature.colour = colourmaps.getMap("chloropleth", {
+    feature.featureColour = colourmaps.getMap("chloropleth", {
       buckets: 50,
       min: feature.min,
       max: feature.max
@@ -190,7 +190,50 @@ function addFeaturesToWorld(unsetFeatures) {
   world.features = features;
   wheeler.getPolygons(world);
   webgl.updatePolygons(world.polygons);
-  updateColourSelector(features);
+  updateColourSelector(world.features, world.qualities);
+}
+
+function addQualitiesToWorld(unsetQualities) {
+  var qualities = {};
+  // qualities[quality] = {qualityvalue: [cell_id, cell_id, cell_id]}
+  for (var i = 0; i < unsetQualities.cells.length; i++) {
+    world.cells[i].qualities = unsetQualities.cells[i];
+    var qualityKeys = Object.keys(world.cells[i].qualities);
+    for (var j = 0; j < qualityKeys.length; j++) {
+      var key = qualityKeys[j];
+      var qualityValues = qualities[key];
+      if (typeof qualityValues === "undefined") {
+        qualityValues = {};
+      }
+      var qualityValue = qualityValues[world.cells[i].qualities[key]];
+      if (typeof qualityValue === "undefined") {
+        qualityValue = {cells: [i]};
+      } else {
+        qualityValue.cells.push(i);
+      }
+      qualityValues[world.cells[i].qualities[key]] = qualityValue;
+      qualities[key] = qualityValues;
+    }
+  }
+  var qualityKeys = Object.keys(qualities);
+  for (var i = 0; i < qualityKeys.length; i++) {
+    var quality = qualities[qualityKeys[i]];
+    var qualityValueKeys = Object.keys(quality);
+    for (var j = 0; j < qualityValueKeys.length; j++) {
+      quality[qualityValueKeys[j]].colour = colourmaps.discreteColours[j % colourmaps.discreteColours.length]
+
+    }
+    qualities[qualityKeys[i]] = quality;
+  }
+
+  for (var i = 0; i < unsetQualities.paths.length; i++) {
+    world.paths[i].qualities = unsetQualities.paths[i];
+  }
+
+  world.qualities = qualities;
+  wheeler.getPolygons(world);
+  webgl.updatePolygons(world.polygons);
+  updateColourSelector(world.features, world.qualities);
 }
 
 function associatePointOfInterest(poi) {
@@ -361,7 +404,7 @@ function updateHud(e) {
     var colour = new Float32Array(4);
     colour[0] = 1.0;
     colour[3] = 1.0;
-    webgl.recolourPolygon(index, colour, feature);
+    webgl.recolourPolygon(index, colour);
   }
 
   var featuresElement = document.getElementById("features");
@@ -396,23 +439,42 @@ function printSortedFeatures(features) {
   return output;
 }
 
-function updateColourSelector(features) {
-  var keys = Object.keys(features);
-  var colourmaps = document.getElementById("colourmapSelect");
-  while (colourmaps.children.length > 1) {
-    colourmaps.removeChild(colourmaps.lastChild);
+function updateColourSelector(features, qualities) {
+  console.log(features);
+  console.log(qualities);
+  if ((typeof features === "undefined") || (typeof qualities === "undefined")) {
+    return;
   }
-  colourmaps.onchange = function(e) {
-    feature = e.srcElement.value;
-    webgl.recolourPolygons(feature);
+  var featureKeys = Object.keys(features);
+  var qualityKeys = Object.keys(qualities);
+  var colourMaps = document.getElementById("colourmapSelect");
+  while (colourMaps.children.length > 1) {
+    colourMaps.removeChild(colourMaps.lastChild);
+  }
+  colourMaps.onchange = function(e) {
+    var select = e.srcElement;
+    var option = select.options[select.selectedIndex];
+    var colourMapType = option.getAttribute("data-type");
+    var colourMapName = option.getAttribute("value");
+    webgl.recolourPolygons(colourMapType, colourMapName);
   };
-  keys.sort();
-  for (var i = 0; i < keys.length; i++) {
-    if (keys[i].slice(keys[i].length - 3) == "_id") continue;
+  featureKeys.sort();
+  qualityKeys.sort();
+  for (var i = 0; i < featureKeys.length; i++) {
+    if (featureKeys[i].slice(featureKeys[i].length - 3) == "_id") continue;
     var element = document.createElement("option");
-    element.setAttribute("value", keys[i]);
-    element.innerHTML = keyToReadableValue(keys[i]);
-    colourmaps.appendChild(element);
+    element.setAttribute("value", featureKeys[i]);
+    element.setAttribute("data-type", "feature")
+    element.innerHTML = keyToReadableValue(featureKeys[i]);
+    colourMaps.appendChild(element);
+  }
+  for (var i = 0; i < qualityKeys.length; i++) {
+    if (qualityKeys[i].slice(qualityKeys[i].length - 3) == "_id") continue;
+    var element = document.createElement("option");
+    element.setAttribute("value", qualityKeys[i]);
+    element.setAttribute("data-type", "quality")
+    element.innerHTML = keyToReadableValue(qualityKeys[i]);
+    colourMaps.appendChild(element);
   }
 }
 

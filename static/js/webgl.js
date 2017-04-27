@@ -183,7 +183,7 @@ var webgl = (function() {
     return colours;
   }
 
-  function getColoursForPolygons(polygons, numVertices, feature) {
+  function getColoursForPolygons(polygons, numVertices, colourMapType, colourMapName) {
     var x = 0;
     var colours = new Float32Array(numVertices * 4);
 
@@ -197,13 +197,28 @@ var webgl = (function() {
     for (i = 0; i < polygons.length; i++) {
       var polygon = polygons[i];
       var colour = Array(3);
-      if (typeof feature !== "string" || feature == "biomes") {
+      if (typeof colourMapType !== "string" || colourMapType === "biome") {
         colour = polygon.colour["biomes"];
-      } else {
+      } else if (colourMapType === "feature") {
         var biomeColour = polygon.colour["biomes"];
-        var modifierColour = polygon.colour[feature];
+        var modifierColour = polygon.featureColour[colourMapName];
         for (var j = 0; j <= 2; j++) {
           colour[j] = biomeColour[j] * modifierColour[j];
+        }
+      } else if (colourMapType === "quality") {
+        if (i < 10) {
+          console.log(colourMapType);
+          console.log(colourMapName);
+          console.log(polygon.qualityColour[colourMapName]);
+        }
+        if (typeof polygon.qualityColour[colourMapName] === "undefined") {
+          for (var j = 0; j <= 2; j++) {
+            colour[j] = 0;
+          }
+        } else {
+          for (var j = 0; j <= 2; j++) {
+            colour[j] = polygon.qualityColour[colourMapName][j]/255.0;
+          }
         }
       }
       addVertex(colour);
@@ -380,8 +395,8 @@ var webgl = (function() {
     drawScene();
   }
 
-  function recolourPolygon(index, colour, feature) {
-    var colours = getColoursForPolygons(polygons, numPolygonVertices, feature);
+  function recolourPolygon(index, colour) {
+    var colours = getColoursForPolygons(polygons, numPolygonVertices); //, colourMapType, colourMapName);
     colourArray.set(colours);
     var offset = countVerticesForPolygons(polygons, index);
     var length = countVerticesForPolygons(polygons, index + 1) - offset;
@@ -394,8 +409,8 @@ var webgl = (function() {
     drawScene();
   }
 
-  function recolourPolygons(feature) {
-    var colours = getColoursForPolygons(polygons, numPolygonVertices, feature);
+  function recolourPolygons(colourMapType, colourMapName) {
+    var colours = getColoursForPolygons(polygons, numPolygonVertices, colourMapType, colourMapName);
     colourArray.set(colours);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, colourArray, gl.STATIC_DRAW);

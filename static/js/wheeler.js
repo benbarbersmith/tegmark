@@ -35,7 +35,10 @@ var wheeler = (function() {
 
   function getPolygons(cells, nodes, colours) {
     var hasFeatures = cells[0].hasOwnProperty("features");
+    var hasQualities = cells[0].hasOwnProperty("qualities");
     var polygons = new Array(cells.length);
+
+    var seenQualities = {};
 
     for (var i = 0; i < cells.length; i++) {
       var polygon = new Array(cells[i].length);
@@ -49,6 +52,8 @@ var wheeler = (function() {
         if (boundingBox[3] < point[1]) boundingBox[3] = point[1];
       }
       var colour = {};
+      var featureColour = {};
+      var qualityColour = {};
       var defaultColour = new Float32Array(3);
       for (var j = 0; j <= 2; j++) {
         defaultColour[j] = colours[cells[i].colour][j] / 255.0;
@@ -59,22 +64,36 @@ var wheeler = (function() {
         var keys = Object.keys(cells[i].features);
         for (var j = 0; j < keys.length; j++) {
           var key = keys[j];
-          colour[key] = world.features[key].colour(cells[i].features[key]);
+          featureColour[key] = world.features[key].featureColour(cells[i].features[key]);
+        }
+      }
+
+      if (hasQualities) {
+        var keys = Object.keys(cells[i].qualities);
+        for (var j = 0; j < keys.length; j++) {
+          var key = keys[j];
+          qualityColour[key] = world.qualities[key][cells[i].qualities[key]].colour;
         }
       }
 
       if (!isWorldWrapping(polygon)) {
         polygon.colour = colour;
+        polygon.featureColour = featureColour;
+        polygon.qualityColour = qualityColour;
         polygon.boundingBox = boundingBox;
         polygons[i] = polygon;
       } else {
         var newPolygons = splitConvexPolygon(polygon);
         newPolygons[0].colour = colour;
+        newPolygons[0].featureColour = featureColour;
+        newPolygons[0].qualityColour = qualityColour;
         newPolygons[0].boundingBox = boundingBox;
         polygons[i] = newPolygons[0];
         if (newPolygons.length > 1) {
           newPolygons[1].index = i;
           newPolygons[1].colour = colour;
+          newPolygons[1].featureColour = featureColour;
+          newPolygons[1].qualityColour = qualityColour;
           newPolygons[1].boundingBox = boundingBox;
           polygons.push(newPolygons[1]);
         }

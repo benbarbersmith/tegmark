@@ -23,10 +23,13 @@
     </div>
   </div>
   <div id="colours">
-    <img src="static/img/biome_key.png" alt="key" />
+    <ul class="transparentUI">{% for biome in biomes %}
+        <li><span style="background-color: {{ biome.colour.hex_l }}">&nbsp;&nbsp;&nbsp;</span> {{ biome.name }}</li>{% endfor %}
+    </ul>
+    <!-- <img src="static/img/biome_key.png" alt="key" /> -->
     <div id="colourmapOverlay" class="overlay">
       <select id="colourmapSelect" class="form-control">
-        <option value="biomes">Biomes</option>
+        <option value="biomes" data-type="biome">Biomes</option>
       </select>
     </div>
   </div>
