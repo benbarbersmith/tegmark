@@ -133,6 +133,13 @@ function getWorldFeatures() {
     console.error
   );
   getResource(
+    server + world.id + "/qualities",
+    "json",
+    "response",
+    mergeQualitiesIntoWorld,
+    console.error
+  );
+  getResource(
     server + world.id + "/points_of_interest",
     "json",
     "response",
@@ -224,6 +231,18 @@ function mergeFeaturesIntoWorld(json) {
     return;
   } else if (world.hasOwnProperty("cells")) {
     addFeaturesToWorld(json.features);
+  } else {
+    world.unsetFeatures = json.features;
+  }
+}
+
+function mergeQualitiesIntoWorld(json) {
+  if (
+    world.hasOwnProperty("cells") && world.cells[0].hasOwnProperty("qualities")
+  ) {
+    return;
+  } else if (world.hasOwnProperty("cells")) {
+    addQualitiesToWorld(json.qualities);
   } else {
     world.unsetFeatures = json.features;
   }
@@ -347,7 +366,8 @@ function updateHud(e) {
 
   var featuresElement = document.getElementById("features");
   if (cell) {
-    unescapedText = JSON.stringify(cell.features, null, 2);
+    // unescapedText = JSON.stringify(cell.features, null, 2);
+    unescapedText = printSortedFeatures(cell.features)
     if (cell.hasOwnProperty("pointsOfInterest")) {
       unescapedText += "\nPoIs in cell: ";
       unescapedText += cell.pointsOfInterest[0].name;
@@ -361,6 +381,21 @@ function updateHud(e) {
   }
 }
 
+function printSortedFeatures(features) {
+  var keys = [];
+  var output = "";
+  for (k in features) {
+    if (features.hasOwnProperty(k)) {
+      keys.push(k);
+    }
+  }
+  keys.sort();
+  for (var i = 0; i < keys.length; i++) {
+    output += keys[i] + ": " + features[keys[i]] + "\n";
+  }
+  return output;
+}
+
 function updateColourSelector(features) {
   var keys = Object.keys(features);
   var colourmaps = document.getElementById("colourmapSelect");
@@ -371,6 +406,7 @@ function updateColourSelector(features) {
     feature = e.srcElement.value;
     webgl.recolourPolygons(feature);
   };
+  keys.sort();
   for (var i = 0; i < keys.length; i++) {
     if (keys[i].slice(keys[i].length - 3) == "_id") continue;
     var element = document.createElement("option");
@@ -382,7 +418,7 @@ function updateColourSelector(features) {
 
 function keyToReadableValue(key) {
   key = key.split("_").join(" : ");
-  key = key[0].toUpperCase() + key.slice(1);
+  key = key[0] + key.slice(1);
   return key;
 }
 

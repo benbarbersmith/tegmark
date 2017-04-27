@@ -8,9 +8,10 @@ def add_world(world_id, global_state_dict, global_lock):
     end = timer()
     print("Everett total worldgen took {0}".format(end-start))
     global_lock.acquire()
-    (structures, features, points_of_interest) = wheeler.pack(w)
+    (structures, features, qualities, points_of_interest) = wheeler.pack(w)
     global_state_dict[world_id].everett = w
     global_state_dict[world_id].structures = structures
     global_state_dict[world_id].features = features
+    global_state_dict[world_id].qualities = qualities
     global_state_dict[world_id].points_of_interest = points_of_interest
     global_lock.release()

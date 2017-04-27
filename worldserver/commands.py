@@ -20,6 +20,7 @@ class WorldHolder(object):
         self._name = name
         self._structures = None
         self._features = None
+        self._qualities = None
         self._points_of_interest = None
         self._everett = None
 
@@ -57,6 +58,14 @@ class WorldHolder(object):
     @features.setter
     def features(self, features):
         self._features = features
+
+    @property
+    def qualities(self):
+        return self._qualities.copy()
+
+    @qualities.setter
+    def qualities(self, qualities):
+        self._qualities = qualities
 
     @property
     def points_of_interest(self):
@@ -153,6 +162,17 @@ def resolve_command(command, global_state_dict, global_lock):
         else:
             return {'result': 'success', 'features': global_state_dict[world_id].features}
 
+    if command['command'] == 'get_world_qualities':
+        world_id = command.get('world_id', None)
+        if world_id is None:
+            return error_response('must specify world_id')
+        elif world_id not in global_state_dict:
+            return resolve_command(dict(command, world_id=world_id, command="create_new_world"), global_state_dict, global_lock)
+        elif global_state_dict[world_id].status != "complete":
+            return error_response('world is still generating')
+        else:
+            return {'result': 'success', 'qualities': global_state_dict[world_id].qualities}
+
     if command['command'] == 'get_world_points_of_interest':
         world_id = command.get('world_id', None)
         if world_id is None:
@@ -179,13 +199,13 @@ def resolve_command(command, global_state_dict, global_lock):
                 details = command['actions']['build_settlement']
                 if "lon" not in details or "lat" not in details:
                     error_response("'build_settlement' action requires lat and lon")
-                world = global_state_dict[world_id].everett;
+                world = global_state_dict[world_id].everett
                 from everett.pointsofinterest.settlement import Settlement
                 poi = Settlement(world, details["lon"], details["lat"], 1, 1)
                 global_state_dict[world_id].points_of_interest.append(poi.__dict__())
                 result = {'result': 'success', 'point_of_interest': poi.__dict__()}
             else:
-                error_response("no action, or action unrecognised")
+                return error_response("no action, or action unrecognised")
         finally:
             global_lock.release()
         return result

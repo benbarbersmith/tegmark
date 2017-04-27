@@ -105,6 +105,16 @@ def get_world_features(world_id=None):
         return Response(json.dumps(got_world_features), 404, json_headers())
 
 
+@blueprint_api.route('/world/<world_id>/qualities', methods=['GET'])
+def get_world_qualities(world_id=None):
+    got_world_qualities = worldclient.issue_world_command(
+        {'command': 'get_world_qualities', 'world_id': world_id})
+    if got_world_qualities['result'] == 'success':
+        return Response(json.dumps(got_world_qualities), 200, json_headers())
+    else:
+        return Response(json.dumps(got_world_qualities), 404, json_headers())
+
+
 @blueprint_api.route('/world/<world_id>/points_of_interest', methods=['GET'])
 def get_world_points_of_interest(world_id=None):
     got_world_points_of_interest = worldclient.issue_world_command(

@@ -3,6 +3,8 @@ html, body {
     height: 100%;
     margin: 0px;
     background-color: #000;
+    color: #fff;
+    font-family: monospace;
 }
 
 body {
@@ -25,6 +27,18 @@ pre, p {
     font-family: monospace;
     display: block;
     color: white;
+}
+
+ul {
+    padding-left: 1em;
+}
+
+li {
+    list-style-type: none;
+}
+
+input, button, select, option {
+    font-family: monospace;
 }
 
 #colours {
@@ -100,4 +114,8 @@ p#textOverlay {
 #actionsOverlay h2 {
     margin-top: 0;
     color: white;
+}
+
+.transparentUI {
+    text-shadow: black 1px 1px;
 }
