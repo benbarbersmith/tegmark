@@ -440,8 +440,6 @@ function printSortedFeatures(features) {
 }
 
 function updateColourSelector(features, qualities) {
-  console.log(features);
-  console.log(qualities);
   if ((typeof features === "undefined") || (typeof qualities === "undefined")) {
     return;
   }
@@ -456,7 +454,15 @@ function updateColourSelector(features, qualities) {
     var option = select.options[select.selectedIndex];
     var colourMapType = option.getAttribute("data-type");
     var colourMapName = option.getAttribute("value");
+    if (select.selectedIndex > 0) {
+      document.getElementById("biomeKey").classList.add("hidden");
+      document.getElementById("dynamicKey").classList.remove("hidden");
+    } else {
+      document.getElementById("biomeKey").classList.remove("hidden");
+      document.getElementById("dynamicKey").classList.add("hidden");
+    }
     webgl.recolourPolygons(colourMapType, colourMapName);
+    generateColourKey(colourMapType, colourMapName);
   };
   featureKeys.sort();
   qualityKeys.sort();
@@ -475,6 +481,27 @@ function updateColourSelector(features, qualities) {
     element.setAttribute("data-type", "quality")
     element.innerHTML = keyToReadableValue(qualityKeys[i], "Q");
     colourMaps.appendChild(element);
+  }
+}
+
+function generateColourKey(colourMapType, colourMapName) {
+  var dynamicKey = document.getElementById("dynamicKey");
+  dynamicKey.innerHTML = "";
+  if ((colourMapType === "quality") && (typeof world.qualities[colourMapName] !== "undefined")) {
+    var selectedQuality = world.qualities[colourMapName];
+    var qualityValueKeys = Object.keys(selectedQuality);
+    qualityValueKeys.sort();
+    for (var i = 0; i < qualityValueKeys.length; i++) {
+      var colour = selectedQuality[qualityValueKeys[i]].colour;
+      var listItem = document.createElement("li");
+      var colourfulSpan = document.createElement("span");
+      colourfulSpan.innerHTML = "&nbsp;&nbsp;&nbsp;";
+      colourfulSpan.style.backgroundColor = 'rgb('+colour[0]+','+colour[1]+','+colour[2]+')';
+      var textNode = document.createTextNode(" " + qualityValueKeys[i]);
+      listItem.appendChild(colourfulSpan);
+      listItem.appendChild(textNode);
+      dynamicKey.appendChild(listItem);
+    }
   }
 }
 

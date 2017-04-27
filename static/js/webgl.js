@@ -206,11 +206,6 @@ var webgl = (function() {
           colour[j] = biomeColour[j] * modifierColour[j];
         }
       } else if (colourMapType === "quality") {
-        if (i < 10) {
-          console.log(colourMapType);
-          console.log(colourMapName);
-          console.log(polygon.qualityColour[colourMapName]);
-        }
         if (typeof polygon.qualityColour[colourMapName] === "undefined") {
           for (var j = 0; j <= 2; j++) {
             colour[j] = 0;

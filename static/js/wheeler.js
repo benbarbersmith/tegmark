@@ -38,8 +38,6 @@ var wheeler = (function() {
     var hasQualities = cells[0].hasOwnProperty("qualities");
     var polygons = new Array(cells.length);
 
-    var seenQualities = {};
-
     for (var i = 0; i < cells.length; i++) {
       var polygon = new Array(cells[i].length);
       var boundingBox = new Float32Array(4);

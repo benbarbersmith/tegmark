@@ -119,3 +119,7 @@ p#textOverlay {
 .transparentUI {
     text-shadow: black 1px 1px;
 }
+
+.hidden {
+  display: none;
+}

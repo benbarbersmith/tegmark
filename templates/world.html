@@ -23,8 +23,10 @@
     </div>
   </div>
   <div id="colours">
-    <ul class="transparentUI">{% for biome in biomes %}
+    <ul class="transparentUI" id="biomeKey">{% for biome in biomes %}
         <li><span style="background-color: {{ biome.colour.hex_l }}">&nbsp;&nbsp;&nbsp;</span> {{ biome.name }}</li>{% endfor %}
+    </ul>
+    <ul class="transparentUI hidden" id="dynamicKey">
     </ul>
     <!-- <img src="static/img/biome_key.png" alt="key" /> -->
     <div id="colourmapOverlay" class="overlay">
