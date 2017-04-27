@@ -465,7 +465,7 @@ function updateColourSelector(features, qualities) {
     var element = document.createElement("option");
     element.setAttribute("value", featureKeys[i]);
     element.setAttribute("data-type", "feature")
-    element.innerHTML = keyToReadableValue(featureKeys[i]);
+    element.innerHTML = keyToReadableValue(featureKeys[i], "F");
     colourMaps.appendChild(element);
   }
   for (var i = 0; i < qualityKeys.length; i++) {
@@ -473,14 +473,18 @@ function updateColourSelector(features, qualities) {
     var element = document.createElement("option");
     element.setAttribute("value", qualityKeys[i]);
     element.setAttribute("data-type", "quality")
-    element.innerHTML = keyToReadableValue(qualityKeys[i]);
+    element.innerHTML = keyToReadableValue(qualityKeys[i], "Q");
     colourMaps.appendChild(element);
   }
 }
 
-function keyToReadableValue(key) {
-  key = key.split("_").join(" : ");
+function keyToReadableValue(key, prefix) {
+  var separator = " : ";
+  key = key.split("_").join(separator);
   key = key[0] + key.slice(1);
+  if (typeof prefix !== "undefined") {
+    return [prefix, key].join(separator)
+  }
   return key;
 }
 
