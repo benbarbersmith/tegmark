@@ -301,19 +301,19 @@ var wheeler = (function() {
           return objects;
         }
 
-        objectLoop: while (offset <= objectArray.byteLength) {
+        objectLoop: while (offset < objectArray.byteLength) {
           lastIndex = getIndex(bytesPerNodeIndex, offset);
           object = [lastIndex];
           indexLoop: for (
             var i = offset + bytesPerNodeIndex;
-            i <= objectArray.byteLength;
+            i < objectArray.byteLength;
             i += bytesPerNodeIndex
           ) {
             index = getIndex(bytesPerNodeIndex, i);
             if (index == lastIndex) {
-              if (object.length == 1) {
+              if ((object.length == 1) || ((offset + bytesPerNodeIndex) >= objectArray.byteLength)) {
                 var lastObject = objects[objects.length - 1];
-                var nextIndex = getIndex(bytesPerNodeIndex, i + bytesPerNodeIndex);
+                //var nextIndex = getIndex(bytesPerNodeIndex, i + bytesPerNodeIndex);
                 if ((index == lastObject[lastObject.length - 1])) {
                   console.log("Terminating loading "+objectName+". Produced "+objects.length+" objects");
                   offset += bytesPerNodeIndex * 2;
@@ -334,10 +334,11 @@ var wheeler = (function() {
               lastIndex = object[object.length - 1];
             }
           }
-          
+          /*
           if ((offset + bytesPerNodeIndex) >= objectArray.byteLength) {
+            objects.pop();
             break objectLoop;
-          }
+          } */
         }
         logger("Read " + objects.length + " " + objectName);
         return objects;

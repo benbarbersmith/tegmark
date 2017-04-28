@@ -306,13 +306,14 @@ var webgl = (function() {
     for (i = 0; i < paths.length; i++) {
       addVertex(paths[i][0]);
       for (j = 0; j < paths[i].length - 1; j++) {
+        /*
         if ((j > 0) && (j < paths[i].length - 1)) {
           var square = modP(paths[i][j-1], paths[i][j]);
           addVertex(square[1]);
           addVertex(square[0]);
           addVertex(square[2]);
           addVertex(square[3]);
-        }
+        }*/
         addSegment(paths[i][j], paths[i][j + 1]);
         addVertex(p1moda);
         // if (j + 1 < paths.length - 1) addVertex(p1mod);
