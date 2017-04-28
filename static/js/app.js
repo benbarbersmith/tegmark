@@ -189,6 +189,13 @@ function addFeaturesToWorld(unsetFeatures) {
     }
   }
   
+  if (typeof unsetFeatures.path_nodes !== "undefined") {
+    for (var i = 0; i < unsetFeatures.path_nodes.length; i++) {
+      if ((typeof unsetFeatures.path_nodes[i].path_node_id !== "undefined") && (unsetFeatures.path_nodes[i].path_node_id < world.paths[i].length)) {
+        world.paths[i][unsetFeatures.path_nodes[i].path_node_id].features = unsetFeatures.path_nodes[i];
+      }
+    }
+  }
 
   world.features = features;
   wheeler.getPolygons(world);
@@ -231,6 +238,14 @@ function addQualitiesToWorld(unsetQualities) {
   if (typeof unsetQualities.paths !== "undefined") {
     for (var i = 0; i < unsetQualities.paths.length; i++) {
       world.paths[i].qualities = unsetQualities.paths[i];
+    }
+  }
+  
+  if (typeof unsetQualities.path_nodes !== "undefined") {
+    for (var i = 0; i < unsetQualities.path_nodes.length; i++) {
+      if ((typeof unsetQualities.path_nodes[i].path_node_id !== "undefined") && (unsetQualities.path_nodes[i].path_node_id < world.paths[i].length)) {
+        world.paths[i][unsetQualities.path_nodes[i].path_node_id].qualities = unsetQualities.path_nodes[i];
+      }
     }
   }
 
