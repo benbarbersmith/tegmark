@@ -315,6 +315,7 @@ var wheeler = (function() {
                 var lastObject = objects[objects.length - 1];
                 offset += bytesPerNodeIndex;
                 if (index == lastObject[lastObject.length - 1]) {
+				  offset += bytesPerNodeIndex;
                   break objectLoop;
                 }
               } else {
@@ -323,7 +324,7 @@ var wheeler = (function() {
                   i + bytesPerNodeIndex
                 );
                 objects.push(object);
-                offset = i + bytesPerNodeIndex + bytesPerColourIndex;
+                offset = i + bytesPerNodeIndex+ bytesPerColourIndex;
                 break indexLoop;
               }
             } else {
