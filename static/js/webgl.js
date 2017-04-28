@@ -161,9 +161,16 @@ var webgl = (function() {
   function getColoursForPaths(paths, numVertices) {
     var x = 0;
     var colours = new Float32Array(numVertices * 4);
-    var colour = paths[0].colour;
-    for (var i = 0; i < numVertices; i++) {
-      colours.set(colour, i * 4);
+    if (paths.length) {
+      var colour = paths[0].colour;
+      for (var i = 0; i < numVertices; i++) {
+        colours.set(colour, i * 4);
+      }
+    } else {
+      for (var i = 0; i < numVertices; i++) {
+        var colour = [0.0, 0.0, 0.0];
+        colours.set(colour, i * 4);
+      }
     }
     return colours;
   }

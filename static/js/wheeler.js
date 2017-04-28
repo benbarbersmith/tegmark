@@ -287,11 +287,7 @@ var wheeler = (function() {
         var index = 0;
 
         for (var j = 0; j < bytesPerIndex; j++) {
-          var component = objectArray[i + j];
-          if (j > 0) {
-            component = component * Math.pow(256, j);
-          }
-          index += component;
+          index += objectArray[i + j] * Math.pow(256, j);
         }
         return index;
       }
@@ -300,14 +296,17 @@ var wheeler = (function() {
         if (typeof objectName === "undefined") objectName = "objects";
         var lastIndex = -1, lastObjectIndex = -1;
         var objects = [], object = [];
+        
+        if (objectArray.byteLength == 0) {
+            return objects;
+        }
 
-        objectLoop: while (offset < objectArray.byteLength) {
+        objectLoop: while (offset <= objectArray.byteLength) {
           lastIndex = getIndex(bytesPerNodeIndex, offset);
           object = [lastIndex];
-
           indexLoop: for (
             var i = offset + bytesPerNodeIndex;
-            i < objectArray.byteLength;
+            i <= objectArray.byteLength;
             i += bytesPerNodeIndex
           ) {
             index = getIndex(bytesPerNodeIndex, i);
@@ -331,6 +330,10 @@ var wheeler = (function() {
               object.push(index);
               lastIndex = object[object.length - 1];
             }
+          }
+          
+          if ((offset + bytesPerNodeIndex) >= objectArray.byteLength) {
+            break objectLoop;
           }
         }
         logger("Read " + objects.length + " " + objectName);
