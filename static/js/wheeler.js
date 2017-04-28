@@ -311,7 +311,7 @@ var wheeler = (function() {
           ) {
             index = getIndex(bytesPerNodeIndex, i);
             if (index == lastIndex) {
-              if ((object.length == 1) || ((offset + bytesPerNodeIndex) >= objectArray.byteLength)) {
+              if ((object.length == 1)) {// || ((offset + bytesPerNodeIndex) >= objectArray.byteLength)) {
                 var lastObject = objects[objects.length - 1];
                 //var nextIndex = getIndex(bytesPerNodeIndex, i + bytesPerNodeIndex);
                 if ((index == lastObject[lastObject.length - 1])) {

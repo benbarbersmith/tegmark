@@ -240,7 +240,7 @@ var webgl = (function() {
     var numVertices = 0;
     for (var i = 0; i < paths.length; i++) {
       // For triangle strip, need 4 points for every line segment, plus two more points for the denegerate triangle.
-      numVertices += paths[i].length * 6 + 4;
+      numVertices += paths[i].length * 4;
     }
     return numVertices;
   }
@@ -302,18 +302,18 @@ var webgl = (function() {
       vertices[x + 2] = 0.0;
       x += 3;
     }
-
+    
+    addVertex(paths[0][0]);
     for (i = 0; i < paths.length; i++) {
       addVertex(paths[i][0]);
       for (j = 0; j < paths[i].length - 1; j++) {
-        /*
         if ((j > 0) && (j < paths[i].length - 1)) {
           var square = modP(paths[i][j-1], paths[i][j]);
           addVertex(square[1]);
           addVertex(square[0]);
           addVertex(square[2]);
           addVertex(square[3]);
-        }*/
+        }
         addSegment(paths[i][j], paths[i][j + 1]);
         addVertex(p1moda);
         // if (j + 1 < paths.length - 1) addVertex(p1mod);
