@@ -276,6 +276,8 @@ function mergePointsOfInterestIntoWorld(pois) {
       var poi = pois[i];
       associatePointOfInterest(poi);
     }
+    
+    webgl.updatePointsOfInterest(world.pointsOfInterest);
   } else {
     if (world.hasOwnProperty("unattachedPointsOfInterest")) {
       world.unattachedPointsOfInterest.concat(pois);
@@ -283,7 +285,6 @@ function mergePointsOfInterestIntoWorld(pois) {
       world.unattachedPointsOfInterest = pois;
     }
   }
-  webgl.updatePointsOfInterest(world.pointsOfInterest);
 }
 
 function mergeFeaturesIntoWorld(json) {
