@@ -244,6 +244,14 @@ var webgl = (function() {
     }
     return numVertices;
   }
+  function countVerticesForPaths(paths) {
+    var numVertices = 0;
+    for (var i = 0; i < paths.length; i++) {
+      // For triangle strip, need 4 points for every line segment, plus two more points for the denegerate triangle.
+      numVertices += paths[i].length * 7;
+    }
+    return numVertices;
+  }
 
   function countVerticesForPolygons(polygons, maxIndex) {
     if (typeof maxIndex === "undefined") maxIndex = polygons.length;
@@ -265,35 +273,20 @@ var webgl = (function() {
     var p0mod, p1mod;
     var vertices = new Float32Array(numVertices * 3);
 
-    function modP(p0, p1, width) {
-      if (typeof width === "undefined") {
-        width = 1.0;
-      }
+    function addSegment(p0, p1) {
       //TODO: Respect the river width.
       var dx = p1[0] - p0[0];
       var dy = p1[1] - p0[1];
       var normal = [-dy, dx];
-      
-      p0moda = [p0[0] - 0.025 * width * normal[0], p0[1] - 0.025 * width * normal[1], p0[2]];
-      p1moda = [p1[0] - 0.025 * width * normal[0], p1[1] - 0.025 * normal[1], p1[2]];
-      
-      p0modb = [p0[0] + 0.025 * width * normal[0], p0[1] + 0.025 * width * normal[1], p0[2]];
-      p1modb = [p1[0] + 0.025 * width * normal[0], p1[1] + 0.025 * width * normal[1], p1[2]];
-      
-      return [p0moda, p0modb, p1moda, p1modb]
-    }
-    
-    function addSegment(p0, p1, width) {
-      //TODO: Respect the river width.
-      
-      moddedP = modP(p0, p1, width);
-      p0mod = moddedP[1];
-      p1mod = moddedP[3];
 
-      addVertex(moddedP[0]);
-      addVertex(moddedP[1]);
-      addVertex(moddedP[2]);
-      addVertex(moddedP[3]);
+      p0mod = [p0[0] + 0.025 * normal[0], p0[1] + 0.025 * normal[1], p0[2]];
+      p1mod = [p1[0] + 0.025 * normal[0], p1[1] + 0.025 * normal[1], p1[2]];
+
+      addVertex(p0);
+      addVertex(p0mod);
+      addVertex(p1);
+      addVertex(p1mod);
+      addVertex(p1);
     }
 
     function addVertex(point) {
@@ -302,21 +295,12 @@ var webgl = (function() {
       vertices[x + 2] = 0.0;
       x += 3;
     }
-    
-    addVertex(paths[0][0]);
+
     for (i = 0; i < paths.length; i++) {
       addVertex(paths[i][0]);
       for (j = 0; j < paths[i].length - 1; j++) {
-        if ((j > 0) && (j < paths[i].length - 1)) {
-          var square = modP(paths[i][j-1], paths[i][j]);
-          addVertex(square[1]);
-          addVertex(square[0]);
-          addVertex(square[2]);
-          addVertex(square[3]);
-        }
         addSegment(paths[i][j], paths[i][j + 1]);
-        addVertex(p1moda);
-        // if (j + 1 < paths.length - 1) addVertex(p1mod);
+        if (j + 1 < paths.length - 1) addVertex(p1mod);
       }
       addVertex([paths[i].length - 1]);
     }
