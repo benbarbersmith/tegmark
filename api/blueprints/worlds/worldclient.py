@@ -20,7 +20,8 @@ def issue_world_command(command_dict):
     try:
         response_json = data.strip()
         response = json.loads(response_json)
-    except:
+    except Exception as e:
+        logger.exception(e)
         response = data  # It's not JSON, so assume it's binary and share as-is
     client_socket.close()
     return response

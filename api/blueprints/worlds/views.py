@@ -97,8 +97,7 @@ def get_world_structures(world_id=None):
 
 @blueprint_api.route('/world/<world_id>/features', methods=['GET'])
 def get_world_features(world_id=None):
-    got_world_features = worldclient.issue_world_command(
-        {'command': 'get_world_features', 'world_id': world_id})
+    got_world_features = worldclient.issue_world_command({'command': 'get_world_features', 'world_id': world_id})
     if got_world_features['result'] == 'success':
         return Response(json.dumps(got_world_features), 200, json_headers())
     else:

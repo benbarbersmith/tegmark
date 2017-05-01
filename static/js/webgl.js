@@ -165,10 +165,11 @@ var webgl = (function() {
       var colour = paths[0].colour;
       for (var i = 0; i < numVertices; i++) {
         colours.set(colour, i * 4);
+        colours.set([0.5], i * 4 + 3)
       }
     } else {
       for (var i = 0; i < numVertices; i++) {
-        var colour = [0.0, 0.0, 0.0];
+        var colour = [0.0, 0.0, 0.0, 0.5];
         colours.set(colour, i * 4);
       }
     }
@@ -270,23 +271,33 @@ var webgl = (function() {
 
   function getVerticesForPaths(paths, numVertices) {
     var x = 0;
+    var segments = 0;
     var p0mod, p1mod;
     var vertices = new Float32Array(numVertices * 3);
 
-    function addSegment(p0, p1) {
+    function addSegment(p0, p1, width) {
       //TODO: Respect the river width.
+      if (typeof width === "undefined") {
+        width = Math.sqrt((segments+1));
+      }
+
       var dx = p1[0] - p0[0];
       var dy = p1[1] - p0[1];
       var normal = [-dy, dx];
 
-      p0mod = [p0[0] + 0.025 * normal[0], p0[1] + 0.025 * normal[1], p0[2]];
-      p1mod = [p1[0] + 0.025 * normal[0], p1[1] + 0.025 * normal[1], p1[2]];
+
+      // p0 = [p0[0] - 0.025 * width * normal[0], p0[1] - 0.05 * (width/2) * normal[1], p0[2]];
+      // p1 = [p1[0] - 0.025 * width * normal[0], p1[1] - 0.05 * (width/2) * normal[1], p1[2]];
+      p0mod = [p0[0] + 0.025 * width * normal[0], p0[1] + 0.05 * (width/2) * normal[1], p0[2]];
+      p1mod = [p1[0] + 0.025 * width * normal[0], p1[1] + 0.05 * (width/2) * normal[1], p1[2]];
 
       addVertex(p0);
       addVertex(p0mod);
       addVertex(p1);
       addVertex(p1mod);
       addVertex(p1);
+
+      segments += 1;
     }
 
     function addVertex(point) {
@@ -297,6 +308,7 @@ var webgl = (function() {
     }
 
     for (i = 0; i < paths.length; i++) {
+      segments = 0;
       addVertex(paths[i][0]);
       for (j = 0; j < paths[i].length - 1; j++) {
         addSegment(paths[i][j], paths[i][j + 1]);
