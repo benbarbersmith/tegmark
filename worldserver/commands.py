@@ -8,7 +8,7 @@ import random
 import re
 from threading import Thread
 
-import generation
+from . import generation
 
 
 world_id_regex = re.compile("[0-9]+")
@@ -91,7 +91,7 @@ class WorldHolder(object):
         }
 
     def iteritems(self):
-        return self.__dict__().iteritems()
+        return iter(self.__dict__().items())
 
 
 def resolve_command(command, global_state_dict, global_lock):
@@ -103,7 +103,7 @@ def resolve_command(command, global_state_dict, global_lock):
     """
 
     def safe_world(w):
-        return {key: value for key, value in w.iteritems() if key in ['id', 'name', 'status']}
+        return {key: value for key, value in w.items() if key in ['id', 'name', 'status']}
 
     def world_response(world_id):
         return {'result': 'success', 'world': safe_world(global_state_dict[world_id])}
@@ -115,7 +115,7 @@ def resolve_command(command, global_state_dict, global_lock):
         return error_response('???')
 
     if command['command'] == 'list_worlds':
-        return {'result': 'success', 'worlds': [safe_world(world) for world_id, world in global_state_dict.iteritems()]}
+        return {'result': 'success', 'worlds': [safe_world(world) for world_id, world in global_state_dict.items()]}
 
     if command['command'] == 'create_new_world':
         if "world_id" in command and world_id_regex.match(command["world_id"]) is not None:

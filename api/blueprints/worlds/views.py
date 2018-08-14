@@ -2,7 +2,7 @@ from flask import Blueprint, Response, request, url_for
 from werkzeug.datastructures import Headers
 
 
-import worldclient
+from . import worldclient
 import json
 
 blueprint_api = Blueprint('worlds', __name__, template_folder='templates')
@@ -66,7 +66,7 @@ def get_world(world_id=None):
         try:
             user_data = request.get_json()
         except Exception as e:
-            return Response(json.dumps({'error' : 'Bad Request', 'message' : u"Malformed JSON? {}".format(e)}), 400, json_headers())
+            return Response(json.dumps({'error' : 'Bad Request', 'message' : "Malformed JSON? {}".format(e)}), 400, json_headers())
 
         command = {'command': 'take_action', 'world_id': world_id, 'actions': {}}
         for action in user_data:
@@ -129,5 +129,5 @@ def worlds():
     current_worlds = worldclient.issue_world_command(
         {'command': 'list_worlds'})
     worlds_list = [{'world_id': world_id, 'name': world.get('name', 'Unnamed world'),
-                    'uri': url_for('worlds.get_world', world_id=world_id)} for world_id, world in current_worlds['worlds'].iteritems()]
+                    'uri': url_for('worlds.get_world', world_id=world_id)} for world_id, world in current_worlds['worlds'].items()]
     return Response(json.dumps(worlds_list), 200, json_headers())

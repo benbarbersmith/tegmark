@@ -8,7 +8,7 @@ def issue_world_command(command_dict):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.settimeout(None)
     client_socket.connect(('localhost', 31332))
-    client_socket.sendall(u"{j}\n".format(j=json.dumps(command_dict)))
+    client_socket.sendall("{j}\n".format(j=json.dumps(command_dict)))
     data = ""
     try:
         buff = client_socket.recv(4096)
